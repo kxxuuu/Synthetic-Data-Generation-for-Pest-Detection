@@ -1,0 +1,222 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{enumitem}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    citecolor=blue,
+    urlcolor=blue
+}
+
+\title{Synthetic Data Generation for Pest Detection}
+\author{STA 561 Final Project Team}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Collecting labeled pest detection data in real commercial kitchens is difficult because infestations are rare, annotations are expensive, and privacy or sanitation constraints limit data collection. This project studies whether synthetic data can serve as a practical substitute for early-stage detector training. We build an automated pipeline that composes pest assets into kitchen backgrounds, exports bounding-box annotations, and trains a transformer-based object detector using the generated dataset. Our current implementation supports three pest classes: rat, mouse, and cockroach. The pipeline includes kitchen-background collection, synthetic image generation with automatic labels, dataset splitting, DETR training, and evaluation utilities. Although the full video-generation stage and final benchmark results are still in progress, the system already establishes a reproducible framework for analyzing how synthetic scene variation affects pest detection performance. This report describes the motivation, pipeline design, modeling choices, experimental protocol, current status, limitations, and the next steps required to close the gap between image-level synthetic training and the final video-based project objective.
+\end{abstract}
+
+\section{Introduction}
+Automated pest detection is a useful computer vision problem with direct relevance to food safety, public health, and commercial kitchen operations. Early detection of pests such as rats, mice, and cockroaches can reduce contamination risk and help operators intervene before infestations become severe. In practice, however, training a robust pest detector is constrained by data scarcity. Real images or videos of pests in kitchens are difficult to collect at scale, and even when footage is available, bounding-box annotation is labor-intensive.
+
+Synthetic data offers a practical alternative. If realistic synthetic scenes can be generated with accurate labels, then detector development can proceed without depending entirely on expensive real-world annotation. Synthetic data is especially attractive for rare-event problems, where the positive class is inherently underrepresented. In our setting, synthetic generation also allows direct control over scene variables such as pest class, object scale, background clutter, visibility, and lighting.
+
+The goal of this project is to build an end-to-end pipeline that starts from kitchen imagery, generates labeled synthetic pest scenes, and trains a vision-transformer-based detector to localize and classify pests. Our longer-term assignment target is video-based generation with frame-level labels, but the current repository already supports an image-level synthetic training workflow that serves as the core minimum viable system. The central research question is whether synthetic data can effectively train a pest detector and what aspects of synthetic variation matter most for generalization.
+
+\section{Problem Statement}
+We study the following supervised detection problem. Given an input image or video frame from a kitchen environment, the model must identify whether a pest is present, classify its type, and predict a bounding box around it. The three target classes in this project are:
+
+\begin{itemize}[leftmargin=1.5em]
+    \item rat,
+    \item mouse,
+    \item cockroach.
+\end{itemize}
+
+The practical project requirement is more specific: the final system should take a kitchen image as input, automatically generate synthetic pest videos of length 30--60 seconds with frame-level labels, and use those generated data to train a vision-transformer detector. In addition to localization and classification, the final detector should generalize to held-out test videos while maintaining a high true detection rate and a low false positive rate.
+
+Our current implementation addresses the core training problem first by building an image-level synthetic data pipeline with automatic bounding-box annotation. This is a deliberate systems choice: before scaling to videos, we need a reproducible foundation for asset placement, scene randomization, label correctness, and model training.
+
+\section{Related Work}
+This project lies at the intersection of three areas: object detection, synthetic data generation, and agricultural or pest-related visual recognition.
+
+First, modern object detection has increasingly shifted toward transformer-based architectures. DETR introduced an end-to-end detection framework that removes many hand-engineered post-processing components and frames detection as direct set prediction \cite{carion2020detr}. This makes it a natural baseline for our work, especially because the course project explicitly requires a vision-transformer-style detector.
+
+Second, synthetic data has become a common strategy when real annotation is scarce or expensive. Synthetic pipelines are widely used in robotics, autonomous driving, and industrial inspection because they provide perfectly aligned labels and controlled variation. The main challenge is domain gap: a detector trained on synthetic imagery may overfit to rendering artifacts or unrealistic scene statistics. Domain randomization is a common mitigation strategy, where nuisance factors such as texture, scale, position, clutter, and lighting are varied aggressively to encourage robustness.
+
+Third, visual pest detection has clear real-world relevance but comparatively limited openly available labeled data, especially for kitchen or sanitation environments. Many applied systems rely on trap images, microscopy, or highly constrained agricultural settings rather than unconstrained indoor scenes. That makes synthetic generation especially valuable in our problem setting.
+
+Our contribution is not a new detection architecture. Instead, we build an integrated, reproducible pipeline for synthetic pest scene generation and transformer-based training, then use it as a testbed for studying whether synthetic data is sufficient for this application.
+
+\section{Method}
+\subsection{Pipeline Overview}
+The repository implements an automated workflow with the following stages:
+
+\begin{enumerate}[leftmargin=1.5em]
+    \item collect kitchen background images,
+    \item organize pest assets for each target class,
+    \item generate labeled synthetic scenes,
+    \item split the resulting detection dataset,
+    \item train a DETR-based detector,
+    \item evaluate detection performance on held-out data.
+\end{enumerate}
+
+The design goal is reproducibility. Each stage is exposed through scripts so that the dataset and model artifacts can be regenerated without manual annotation.
+
+\subsection{Background Collection}
+Kitchen backgrounds are collected from Places365. We use the dataset to extract kitchen-related indoor scenes, specifically classes such as \texttt{kitchen} and \texttt{restaurant\_kitchen}. These images act as scene backgrounds onto which pest assets are rendered or composited. Using a large scene repository provides environmental diversity and reduces the chance that the detector memorizes a narrow set of layouts.
+
+\subsection{Pest Assets}
+The current pipeline organizes three-dimensional pest assets under class-specific directories:
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{assets/models/rat/},
+    \item \texttt{assets/models/mouse/},
+    \item \texttt{assets/models/cockroach/}.
+\end{itemize}
+
+The use of 3D assets is important because it allows future extension to video generation, viewpoint variation, animation, and more realistic scene interaction. Even in the image-level stage, explicit asset-based generation provides tighter control than generic image editing.
+
+\subsection{Synthetic Scene Generation}
+Synthetic training examples are produced with Blender-based automation. For each generated sample, the pipeline selects a kitchen background, places a pest instance, applies randomized scene parameters, and exports both the rendered image and the corresponding bounding-box label. Output files include:
+
+\begin{itemize}[leftmargin=1.5em]
+    \item a rendered image,
+    \item a normalized bounding-box label file,
+    \item metadata describing the generated sample.
+\end{itemize}
+
+The current generator focuses on image-level examples rather than full video clips. However, the generator was designed to make later extension to temporal data straightforward. The same principles that govern static scene randomization can be extended to frame-by-frame motion paths and time-varying visibility.
+
+\subsection{Label Format}
+Bounding boxes are exported automatically in normalized coordinates. This avoids manual annotation and guarantees label consistency with the generated scene geometry. One of the main advantages of synthetic data in this context is that annotation correctness can be enforced by construction rather than relying on external labeling workflows.
+
+\subsection{Detector}
+We use DETR as the baseline detector. DETR is a transformer-based architecture that jointly predicts object classes and boxes through direct set prediction \cite{carion2020detr}. This makes it well aligned with the project requirement to train a vision-transformer-style detector for pest localization and classification.
+
+The detector is trained on the synthetic dataset after splitting it into training, validation, and test subsets. The repository includes scripts for both training and evaluation, enabling end-to-end experiments once a generated dataset is available.
+
+\section{Experimental Setup}
+\subsection{Dataset Construction}
+At the time of writing, the repository contains a smoke-test synthetic dataset with 200 labeled images balanced across the three classes. A corresponding split file partitions the data into:
+
+\begin{itemize}[leftmargin=1.5em]
+    \item 140 training images,
+    \item 30 validation images,
+    \item 30 test images.
+\end{itemize}
+
+This dataset is not large enough to support strong claims about final model performance, but it is sufficient for pipeline validation, training-script debugging, and early-stage sanity checks.
+
+\subsection{Training Protocol}
+The default training configuration uses:
+\begin{itemize}[leftmargin=1.5em]
+    \item 20 epochs,
+    \item batch size 4,
+    \item learning rate $1 \times 10^{-4}$.
+\end{itemize}
+
+These settings are intended for a baseline run rather than a fully optimized training schedule. As the dataset grows, training hyperparameters and augmentation policies will need to be revisited.
+
+\subsection{Evaluation Metrics}
+The final assignment emphasizes true detection rate and false positive rate. In addition, standard object detection metrics such as precision, recall, and mean average precision at a fixed IoU threshold are useful for diagnosing model behavior. The current evaluation script supports thresholded detection analysis with configurable confidence and IoU settings.
+
+For the final report, we plan to present:
+\begin{itemize}[leftmargin=1.5em]
+    \item per-class precision and recall,
+    \item overall true detection rate,
+    \item false positive rate,
+    \item qualitative failure examples.
+\end{itemize}
+
+\section{Current Results and Project Status}
+The engineering pipeline is substantially further along than the final empirical evaluation. At the time of writing, the following components are implemented:
+
+\begin{itemize}[leftmargin=1.5em]
+    \item automated Places365 download and kitchen-image filtering,
+    \item organization of pest assets by class,
+    \item Blender-based synthetic image generation,
+    \item automatic bounding-box export,
+    \item dataset split generation,
+    \item DETR training and evaluation scripts.
+\end{itemize}
+
+In addition, a sample synthetic dataset has already been produced locally, and the repository contains the scripts required to regenerate it.
+
+The main missing empirical artifact is a confirmed trained checkpoint and final evaluation report. As a result, we do not yet report final quantitative detector performance. This is an important limitation: the current project status supports a systems and methodology write-up, but not a conclusive answer to the full research question. Rather than fabricating metrics, we leave the main result table in placeholder form below.
+
+\begin{table}[H]
+    \centering
+    \caption{Planned result table for the final submission.}
+    \begin{tabular}{lcccc}
+        \toprule
+        Training Data & Precision & Recall & TDR & FPR \\
+        \midrule
+        Synthetic only (smoke dataset) & TBD & TBD & TBD & TBD \\
+        Synthetic only (full dataset) & TBD & TBD & TBD & TBD \\
+        Synthetic + additional randomization & TBD & TBD & TBD & TBD \\
+        Synthetic video frames & TBD & TBD & TBD & TBD \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Even without final metrics, the current pipeline already establishes several useful conclusions. First, the project is technically feasible in a reproducible way. Second, synthetic generation with automatic labels is a practical mechanism for bootstrapping pest detection data. Third, the largest remaining challenges are no longer dataset plumbing or training infrastructure, but realism, scale, and synthetic-to-real generalization.
+
+\section{Discussion}
+\subsection{Why Synthetic Data Is Promising Here}
+This problem is well suited to synthetic data for several reasons. Pest appearances are relatively structured, the number of target classes is small, and annotation quality is critical. Synthetic generation makes it possible to produce arbitrarily many labeled examples at low marginal cost once the scene pipeline is established. It also enables targeted stress testing: we can deliberately vary clutter, object scale, background type, or visibility to understand failure modes.
+
+\subsection{Limitations of the Current System}
+The current system still has several limitations.
+
+First, the synthetic pipeline is image-level rather than fully video-based. This means the repository does not yet satisfy the temporal component of the final assignment. Second, the present dataset scale is modest, so any model trained on it is likely to underfit the intended deployment scenario or overfit to generator artifacts. Third, only a small number of pest assets are currently integrated, which limits appearance diversity. Fourth, the detector has not yet been validated against a realistic held-out video benchmark.
+
+\subsection{Expected Failure Modes}
+Several failure modes are likely:
+\begin{itemize}[leftmargin=1.5em]
+    \item overfitting to synthetic lighting or compositing artifacts,
+    \item confusion between small pests and background clutter,
+    \item missed detections under heavy occlusion or extreme scale variation,
+    \item false positives triggered by kitchen objects with pest-like contours.
+\end{itemize}
+
+These failure modes motivate the next phase of work: richer asset variation, improved rendering realism, hard negative examples, and full video generation with realistic motion.
+
+\section{Future Work}
+The next development steps are clear.
+
+\begin{enumerate}[leftmargin=1.5em]
+    \item Train the baseline DETR model to completion and export a reproducible evaluation report.
+    \item Scale the synthetic dataset beyond the current smoke-test size.
+    \item Extend the generator from static images to 30--60 second labeled videos.
+    \item Add motion policies, occlusion events, and temporal camera variation.
+    \item Study synthetic randomization as an ablation variable rather than treating generation as fixed.
+    \item Evaluate whether synthetic pretraining plus limited real fine-tuning improves generalization.
+\end{enumerate}
+
+From a research perspective, the most interesting question is not simply whether synthetic data works at all, but which forms of synthetic diversity matter most. A carefully designed ablation study could compare background diversity, lighting randomization, object pose, pest size, clutter, and temporal motion to determine which factors most influence detector quality.
+
+\section{Conclusion}
+This project develops a reproducible synthetic-data pipeline for pest detection in kitchen environments. The current system collects kitchen backgrounds, integrates pest assets, generates labeled synthetic images, and prepares data for DETR-based training and evaluation. Although the final video-generation stage and quantitative detector results are still pending, the implemented workflow already demonstrates that synthetic data can serve as a practical foundation for this task.
+
+The main contribution of the current project stage is engineering infrastructure: a controllable way to generate labeled pest scenes and train a transformer-based detector without relying on large manually annotated real datasets. The next step is to complete large-scale training and video-based evaluation so that the central research question can be answered with empirical evidence rather than only system design arguments.
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}
