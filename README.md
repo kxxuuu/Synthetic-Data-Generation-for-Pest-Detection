@@ -141,6 +141,8 @@ Download one `rat`, one `mouse`, and one `cockroach` model file into `assets/mod
 
 ### Step 3) Generate synthetic images with Blender
 
+On DCC, this is a heavy stage; prefer submitting via `job.sbatch` (`STAGE=generate`) instead of running on a login node.
+
 ```bash
 bash scripts/run_generate_synthetic.sh \
   blender \
@@ -158,6 +160,52 @@ Outputs:
 - Normalized bbox labels (`class x_center y_center width height`): `data/generated/synth_v1/labels/*.txt`
 - Metadata: `data/generated/synth_v1/metadata.csv`
 
+## DCC Run Policy (Login Node vs Compute Node)
+
+- Canonical script entrypoints remain under `scripts/`.
+- Root-level wrappers:
+  - `run.sh`: safe wrapper for lightweight/local usage.
+  - `job.sbatch`: Slurm batch entrypoint for real DCC runs.
+- For large outputs/checkpoints/generated data, prefer paths under `/work/$USER`.
+
+### Lightweight (safe on login node)
+
+Split only:
+
+```bash
+bash run.sh split \
+  --data-dir /work/$USER/pest_synth/data/generated/synth_v1 \
+  --out-dir /work/$USER/pest_synth/data/splits/synth_v1 \
+  --train-ratio 0.7 --val-ratio 0.15 --test-ratio 0.15 \
+  --seed 42
+```
+
+### Real execution on DCC (recommended)
+
+Train with defaults in `job.sbatch`:
+
+```bash
+sbatch job.sbatch
+```
+
+If your allocation requires explicit account/partition:
+
+```bash
+sbatch -A <ACCOUNT> -p <PARTITION> job.sbatch
+```
+
+Eval stage:
+
+```bash
+sbatch --export=ALL,STAGE=eval,WORK_ROOT=/work/$USER/pest_synth job.sbatch
+```
+
+Generate stage:
+
+```bash
+sbatch --export=ALL,STAGE=generate,WORK_ROOT=/work/$USER/pest_synth,NUM_IMAGES=500 job.sbatch
+```
+
 ### Data source references
 
 - `data_sources/SYNTHETIC_DATA_SOURCES.md`
@@ -167,6 +215,7 @@ Outputs:
 ## DETR Baseline (Train + Eval)
 
 This pipeline trains and evaluates **DETR only**.
+For DCC, run heavy stages on compute nodes (`sbatch`/`srun`), not login nodes.
 
 ### 1) Split synthetic dataset
 
