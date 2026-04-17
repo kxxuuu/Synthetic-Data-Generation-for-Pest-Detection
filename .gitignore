@@ -210,17 +210,14 @@ marimo/_lsp/
 __marimo__/
 
 # ===== Project-specific: Synthetic Pest Pipeline =====
-# Raw/processed datasets (keep tiny marker/config files only)
+# Raw/processed datasets and derived metadata
+# Generated datasets, manifests, and splits should be recreated locally,
+# not committed to git. Keep only directory markers if needed.
 data/raw/**
 data/generated/**
 data/splits/**
 !data/**/.gitkeep
 !data/**/*.md
-!data/**/*.txt
-!data/**/*.csv
-!data/**/*.yaml
-!data/**/*.yml
-!data/**/*.json
 
 # Training artifacts / experiment logs
 outputs/**
@@ -244,22 +241,22 @@ checkpoints/
 *.cache.blend
 
 # 3D / media binaries (keep catalogs and docs tracked)
-# assets/models/**/*.glb
-# assets/models/**/*.gltf
-# assets/models/**/*.fbx
-# assets/models/**/*.obj
-# assets/models/**/*.stl
-# assets/models/**/*.ply
-# assets/models/**/*.mtl
-# assets/models/**/*.bin
-# assets/models/**/*.zip
-# assets/models/**/*.rar
-# assets/models/**/*.7z
-# assets/models/**/*.tar
-# assets/models/**/*.gz
-# !assets/models/**/*.md
-# !assets/models/**/*.csv
-# !assets/models/**/*.txt
+assets/models/**/*.glb
+assets/models/**/*.gltf
+assets/models/**/*.fbx
+assets/models/**/*.obj
+assets/models/**/*.stl
+assets/models/**/*.ply
+assets/models/**/*.mtl
+assets/models/**/*.bin
+assets/models/**/*.zip
+assets/models/**/*.rar
+assets/models/**/*.7z
+assets/models/**/*.tar
+assets/models/**/*.gz
+!assets/models/**/*.md
+!assets/models/**/*.csv
+!assets/models/**/*.txt
 
 # Large media and archives anywhere
 *.mp4

@@ -158,6 +158,10 @@ The following pieces are real, working progress and should be presented as such:
 - Label export is working.
 - Dataset splitting is working.
 - DETR smoke training is working.
+- Short video-style clip generation is working.
+- Per-frame label export is working.
+- Flattening video frames into the current detection dataset format is working.
+- DETR smoke training on video-derived frames is working.
 
 ## What Still Needs to Be Built
 

@@ -263,19 +263,19 @@ conda run -n pest-synth python -c "import torch; print(torch.__version__); print
 
 ```powershell
 $blender = Join-Path $env:ProgramFiles "Blender Foundation\Blender 5.1\blender.exe"
-& $blender --background --python scripts\generate_synthetic_blender.py -- --background-dir data\raw\kitchen_backgrounds --rat-model assets\models\rat\rat_primary.glb --mouse-model assets\models\mouse\mouse_primary.glb --cockroach-model assets\models\cockroach\cockroach_primary.glb --out-dir data\generated\synth_v1_smoke60 --num-images 60
+& $blender --background --python scripts\generate_synthetic_blender.py -- --background-dir data\raw\kitchen_backgrounds --rat-model assets\models\rat\rat_primary.glb --mouse-model assets\models\mouse\mouse_primary.glb --cockroach-model assets\models\cockroach\cockroach_primary.glb --out-dir data\generated\image_smoke_v1 --num-images 60
 ```
 
 ### Split dataset
 
 ```powershell
-conda run -n pest-synth python scripts\split_detection_dataset.py --data-dir data\generated\synth_v1_smoke60 --out-dir data\splits\synth_v1_smoke60 --train-ratio 0.7 --val-ratio 0.15 --test-ratio 0.15 --seed 42
+conda run -n pest-synth python scripts\split_detection_dataset.py --data-dir data\generated\image_smoke_v1 --out-dir data\splits\image_smoke_v1 --train-ratio 0.7 --val-ratio 0.15 --test-ratio 0.15 --seed 42
 ```
 
 ### Train smoke model
 
 ```powershell
-conda run -n pest-synth python scripts\train_detr.py --data-dir data\generated\synth_v1_smoke60 --split-json data\splits\synth_v1_smoke60\split.json --output-dir outputs\detr_smoke60 --epochs 5 --batch-size 4 --lr 1e-4
+conda run -n pest-synth python scripts\train_detr.py --data-dir data\generated\image_smoke_v1 --split-json data\splits\image_smoke_v1\split.json --output-dir outputs\detr_image_smoke_v1 --epochs 5 --batch-size 4 --lr 1e-4
 ```
 
 ## 12. Recommendation for Future Re-runs

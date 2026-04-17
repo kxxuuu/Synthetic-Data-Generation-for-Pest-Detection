@@ -25,8 +25,35 @@ The repository already has:
 - class labels and bbox export
 - dataset split utilities
 - DETR training and evaluation scripts
+- a working video MVP:
+  - `scripts/generate_synthetic_video_blender.py`
+  - per-clip frames
+  - per-frame labels
+  - clip metadata
+  - `manifest.csv`
+- a flattening utility for reusing video frames in the current training pipeline:
+  - `scripts/flatten_video_frames_for_detection.py`
 
-That means the main missing work is not the entire pipeline, but specifically the **temporal/video generation layer**.
+That means the main missing work is no longer the first temporal prototype. The main missing work is now extending that prototype into a full assignment-scale video pipeline.
+
+## Current Implemented MVP
+
+The repository can now:
+
+- generate a short clip with one pest moving across frames
+- export frame images
+- export YOLO-format labels for each frame
+- save clip metadata
+- flatten video frames into `images/` + `labels/` for DETR reuse
+
+What still remains:
+
+- longer clips
+- more clips
+- more realistic motion
+- optional multi-pest scenes
+- video packaging
+- scale-out execution
 
 ## Recommended Development Strategy
 
