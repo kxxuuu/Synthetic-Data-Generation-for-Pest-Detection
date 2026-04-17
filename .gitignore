@@ -244,22 +244,22 @@ checkpoints/
 *.cache.blend
 
 # 3D / media binaries (keep catalogs and docs tracked)
-assets/models/**/*.glb
-assets/models/**/*.gltf
-assets/models/**/*.fbx
-assets/models/**/*.obj
-assets/models/**/*.stl
-assets/models/**/*.ply
-assets/models/**/*.mtl
-assets/models/**/*.bin
-assets/models/**/*.zip
-assets/models/**/*.rar
-assets/models/**/*.7z
-assets/models/**/*.tar
-assets/models/**/*.gz
-!assets/models/**/*.md
-!assets/models/**/*.csv
-!assets/models/**/*.txt
+# assets/models/**/*.glb
+# assets/models/**/*.gltf
+# assets/models/**/*.fbx
+# assets/models/**/*.obj
+# assets/models/**/*.stl
+# assets/models/**/*.ply
+# assets/models/**/*.mtl
+# assets/models/**/*.bin
+# assets/models/**/*.zip
+# assets/models/**/*.rar
+# assets/models/**/*.7z
+# assets/models/**/*.tar
+# assets/models/**/*.gz
+# !assets/models/**/*.md
+# !assets/models/**/*.csv
+# !assets/models/**/*.txt
 
 # Large media and archives anywhere
 *.mp4
