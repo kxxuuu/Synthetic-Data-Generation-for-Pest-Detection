@@ -1,12 +1,21 @@
 # Project Status and Runbook
 
-## 1) Current Status (as of March 13, 2026)
+## 1) Current Status (as of April 17, 2026)
+
+Project phase label:
+
+- **Phase 1 baseline**: static-image synthetic data generation + DETR smoke training
+- **Not yet full assignment compliance**: video generation, scene adaptation from one kitchen photo, and final target metrics still remain
 
 ### Completed
 
 - Project scope selected: **Synthetic Data Generation for Pest Detection**.
 - Assignment requirements parsed and documented.
 - Environment file added: `environment.yml` (`pest-synth`).
+- Windows environment setup verified locally:
+  - Conda environment created successfully
+  - PyTorch GPU stack working on Windows
+  - Blender installed and synthetic generation tested
 - Places365 background pipeline completed:
   - download script: `scripts/download_places365.py`
   - kitchen-only filter script: `scripts/collect_places365_kitchen.py`
@@ -29,27 +38,38 @@
 ### Already produced locally
 
 - Synthetic sample dataset exists:
-  - `data/generated/synth_v1_smoke4/`
-  - 200 images + 200 labels (balanced across 3 classes)
+  - `data/generated/synth_v1_smoke60/`
+  - 60 images + 60 labels
 - Split file generated:
-  - `data/splits/synth_v1_smoke4/split.json`
-  - train/val/test = 140/30/30
+  - `data/splits/synth_v1_smoke60/split.json`
+  - train/val/test = 41/9/10
+- 3D primary assets confirmed:
+  - `assets/models/rat/rat_primary.glb`
+  - `assets/models/mouse/mouse_primary.glb`
+  - `assets/models/cockroach/cockroach_primary.glb`
 
 ### Not completed yet
 
-- No confirmed trained checkpoint yet (`outputs/detr_smoke4/best` missing).
-- No final DETR evaluation report yet (`eval_test.json` pending).
+- No confirmed trained checkpoint yet (`outputs/detr_smoke60/best` missing).
+- No final DETR evaluation report yet (`outputs/detr_smoke60/eval_test.json` pending).
 - No video-level synthetic generation workflow yet (current pipeline is image-level).
+- No single-photo kitchen layout adaptation yet.
+- No evidence yet of meeting the final `TPR >= 80%` and `FPR < 5%` target on instructor-run test video data.
 - No final report package (executive summary / FAQ / technical appendix) yet.
 
 ## 2) What To Do Next
 
-1. Run DETR training to produce `outputs/detr_smoke4/best`.
-2. Run evaluation and generate `outputs/detr_smoke4/eval_test.json`.
+1. Run DETR training to produce `outputs/detr_smoke60/best`.
+2. Run evaluation and generate `outputs/detr_smoke60/eval_test.json`.
 3. Inspect failure cases and adjust synthetic generation (scale/visibility/background realism).
 4. Generate a larger dataset (`synth_v1`) and retrain.
 5. Add video generation stage (30-60s) for assignment compliance.
 6. Prepare write-up artifacts.
+
+Reference docs:
+
+- `REQUIREMENTS_GAP_ANALYSIS.md`
+- `VIDEO_GENERATION_PLAN.md`
 
 ## 3) Initialization
 
@@ -58,7 +78,15 @@ conda env create -f environment.yml
 conda activate pest-synth
 ```
 
-Install Blender separately (example on macOS):
+Install Blender separately.
+
+Windows example:
+
+```powershell
+winget install -e --id BlenderFoundation.Blender
+```
+
+macOS example:
 
 ```bash
 brew install --cask blender
@@ -72,15 +100,20 @@ which blender
 ```bash
 python scripts/download_places365.py \
   --root data/raw/places365 \
-  --split train-standard \
+  --split val \
   --small true
 
 python scripts/collect_places365_kitchen.py \
   --places-root data/raw/places365 \
   --out-dir data/raw/kitchen_backgrounds \
-  --mode symlink \
-  --max-per-class 5000
+  --mode copy \
+  --max-per-class 500
 ```
+
+Windows note:
+
+- `--mode copy` is recommended.
+- The `val` split has been tested locally on Windows.
 
 ### 4.2 Confirm 3D models exist
 
@@ -91,6 +124,15 @@ Required primary files:
 - `assets/models/cockroach/cockroach_primary.glb`
 
 ## 5) Synthetic Data Generation
+
+Windows-tested command:
+
+```powershell
+$blender = Join-Path $env:ProgramFiles "Blender Foundation\Blender 5.1\blender.exe"
+& $blender --background --python scripts\generate_synthetic_blender.py -- --background-dir data\raw\kitchen_backgrounds --rat-model assets\models\rat\rat_primary.glb --mouse-model assets\models\mouse\mouse_primary.glb --cockroach-model assets\models\cockroach\cockroach_primary.glb --out-dir data\generated\synth_v1_smoke60 --num-images 60
+```
+
+Cross-platform / Bash-style command:
 
 ```bash
 bash scripts/run_generate_synthetic.sh \
@@ -115,8 +157,8 @@ Outputs:
 
 ```bash
 python scripts/split_detection_dataset.py \
-  --data-dir data/generated/synth_v1 \
-  --out-dir data/splits/synth_v1 \
+  --data-dir data/generated/synth_v1_smoke60 \
+  --out-dir data/splits/synth_v1_smoke60 \
   --train-ratio 0.7 --val-ratio 0.15 --test-ratio 0.15 \
   --seed 42
 ```
@@ -125,10 +167,10 @@ python scripts/split_detection_dataset.py \
 
 ```bash
 python scripts/train_detr.py \
-  --data-dir data/generated/synth_v1 \
-  --split-json data/splits/synth_v1/split.json \
-  --output-dir outputs/detr_synth_v1 \
-  --epochs 20 \
+  --data-dir data/generated/synth_v1_smoke60 \
+  --split-json data/splits/synth_v1_smoke60/split.json \
+  --output-dir outputs/detr_smoke60 \
+  --epochs 5 \
   --batch-size 4 \
   --lr 1e-4
 ```
@@ -137,10 +179,10 @@ python scripts/train_detr.py \
 
 ```bash
 python scripts/eval_detr.py \
-  --data-dir data/generated/synth_v1 \
-  --split-json data/splits/synth_v1/split.json \
-  --checkpoint-dir outputs/detr_synth_v1/best \
-  --output-json outputs/detr_synth_v1/eval_test.json \
+  --data-dir data/generated/synth_v1_smoke60 \
+  --split-json data/splits/synth_v1_smoke60/split.json \
+  --checkpoint-dir outputs/detr_smoke60/best \
+  --output-json outputs/detr_smoke60/eval_test.json \
   --confidence-threshold 0.5 \
   --iou-threshold 0.5
 ```

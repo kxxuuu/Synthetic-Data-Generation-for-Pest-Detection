@@ -3,11 +3,56 @@
 
 STA 561 Final Project
 
+## Current Verified State
+
+- This repository currently represents a **Phase 1 baseline**, not the full final assignment pipeline.
+- Windows environment setup has been tested on this repository.
+- A Conda environment named `pest-synth` is working with:
+  - Python 3.10
+  - PyTorch 2.6.0 + CUDA
+  - `transformers`, `timm`, and `Pillow`
+- Blender-based generation has been verified on Windows.
+- A smoke synthetic dataset has been generated locally:
+  - `data/generated/synth_v1_smoke60/`
+  - `data/splits/synth_v1_smoke60/split.json`
+
+## Phase Scope
+
+What this repository currently does:
+
+- generates labeled synthetic pest images
+- trains a DETR-based detector on those images
+- provides a working local baseline for data generation and training
+
+What it does **not** yet fully do:
+
+- generate 30-60 second labeled videos
+- adapt scene layout from a single user-provided kitchen image
+- demonstrate final TPR/FPR target compliance on instructor test videos
+
+For a formal requirement-by-requirement comparison, see:
+
+- `REQUIREMENTS_GAP_ANALYSIS.md`
+- `VIDEO_GENERATION_PLAN.md`
+
+## Windows Notes
+
+- `python ...` commands in this README work on Windows if you run them inside the `pest-synth` Conda environment.
+- `bash ...` commands do **not** work in plain PowerShell unless you have Git Bash, WSL, or another Bash shell installed.
+- On Windows, prefer:
+  - `conda run -n pest-synth python ...`
+  - calling Blender with its installed executable path, for example:
+    - `"$env:ProgramFiles\Blender Foundation\Blender 5.1\blender.exe"`
+- For `Places365` background extraction on Windows, use `--mode copy` instead of `--mode symlink`.
+
 ## Start Here
 
 - Project status + runbook: `PROJECT_STATUS.md`
 - Execution plan: `PROJECT_EXECUTION_PLAN.md`
 - Data sources: `data_sources/SYNTHETIC_DATA_SOURCES.md`
+- Requirement gap analysis: `REQUIREMENTS_GAP_ANALYSIS.md`
+- Video generation plan: `VIDEO_GENERATION_PLAN.md`
+- Windows rerun notes: `WINDOWS_RUN_TROUBLESHOOTING.md`
 
 ## 1. Project Overview
 
@@ -101,6 +146,21 @@ The system will consist of the following components:
 
 ## Quick Start: Synthetic Image Pipeline
 
+### Environment Setup
+
+Create the environment:
+
+```bash
+conda env create -f environment.yml
+conda activate pest-synth
+```
+
+Windows users can also run project commands without activating first:
+
+```powershell
+conda run -n pest-synth python --version
+```
+
 ### Step 1) Collect kitchen-only backgrounds from Places365
 
 Download Places365 (small version) automatically:
@@ -108,7 +168,7 @@ Download Places365 (small version) automatically:
 ```bash
 python scripts/download_places365.py \
   --root data/raw/places365 \
-  --split train-standard \
+  --split val \
   --small true
 ```
 
@@ -118,8 +178,8 @@ Then collect kitchen-only images:
 python scripts/collect_places365_kitchen.py \
   --places-root data/raw/places365 \
   --out-dir data/raw/kitchen_backgrounds \
-  --mode symlink \
-  --max-per-class 5000
+  --mode copy \
+  --max-per-class 500
 ```
 
 This creates:
@@ -143,6 +203,8 @@ Download one `rat`, one `mouse`, and one `cockroach` model file into `assets/mod
 
 On DCC, this is a heavy stage; prefer submitting via `job.sbatch` (`STAGE=generate`) instead of running on a login node.
 
+macOS / Linux style:
+
 ```bash
 bash scripts/run_generate_synthetic.sh \
   blender \
@@ -152,6 +214,13 @@ bash scripts/run_generate_synthetic.sh \
   assets/models/cockroach/cockroach_primary.glb \
   data/generated/synth_v1 \
   200
+```
+
+Windows PowerShell example:
+
+```powershell
+$blender = Join-Path $env:ProgramFiles "Blender Foundation\Blender 5.1\blender.exe"
+& $blender --background --python scripts\generate_synthetic_blender.py -- --background-dir data\raw\kitchen_backgrounds --rat-model assets\models\rat\rat_primary.glb --mouse-model assets\models\mouse\mouse_primary.glb --cockroach-model assets\models\cockroach\cockroach_primary.glb --out-dir data\generated\synth_v1_smoke60 --num-images 60
 ```
 
 Outputs:
@@ -221,8 +290,8 @@ For DCC, run heavy stages on compute nodes (`sbatch`/`srun`), not login nodes.
 
 ```bash
 python scripts/split_detection_dataset.py \
-  --data-dir data/generated/synth_v1_smoke4 \
-  --out-dir data/splits/synth_v1_smoke4 \
+  --data-dir data/generated/synth_v1_smoke60 \
+  --out-dir data/splits/synth_v1_smoke60 \
   --train-ratio 0.7 --val-ratio 0.15 --test-ratio 0.15 \
   --seed 42
 ```
@@ -231,10 +300,10 @@ python scripts/split_detection_dataset.py \
 
 ```bash
 python scripts/train_detr.py \
-  --data-dir data/generated/synth_v1_smoke4 \
-  --split-json data/splits/synth_v1_smoke4/split.json \
-  --output-dir outputs/detr_smoke4 \
-  --epochs 20 \
+  --data-dir data/generated/synth_v1_smoke60 \
+  --split-json data/splits/synth_v1_smoke60/split.json \
+  --output-dir outputs/detr_smoke60 \
+  --epochs 5 \
   --batch-size 4 \
   --lr 1e-4
 ```
@@ -243,10 +312,10 @@ python scripts/train_detr.py \
 
 ```bash
 python scripts/eval_detr.py \
-  --data-dir data/generated/synth_v1_smoke4 \
-  --split-json data/splits/synth_v1_smoke4/split.json \
-  --checkpoint-dir outputs/detr_smoke4/best \
-  --output-json outputs/detr_smoke4/eval_test.json \
+  --data-dir data/generated/synth_v1_smoke60 \
+  --split-json data/splits/synth_v1_smoke60/split.json \
+  --checkpoint-dir outputs/detr_smoke60/best \
+  --output-json outputs/detr_smoke60/eval_test.json \
   --confidence-threshold 0.5 \
   --iou-threshold 0.5
 ```

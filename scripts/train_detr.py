@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -110,22 +111,27 @@ def build_loader(
     num_workers: int,
     shuffle: bool,
 ) -> DataLoader:
-    def collate_fn(batch: list[Sample]) -> dict[str, Any]:
-        pixel_values = [x.pixel_values for x in batch]
-        enc = processor.pad(pixel_values, return_tensors="pt")
-        return {
-            "pixel_values": enc["pixel_values"],
-            "pixel_mask": enc["pixel_mask"],
-            "labels": [x.labels for x in batch],
-        }
-
     return DataLoader(
         dataset,
         batch_size=batch_size,
         shuffle=shuffle,
         num_workers=num_workers,
-        collate_fn=collate_fn,
+        collate_fn=partial(collate_fn_detr, processor=processor),
     )
+
+
+def collate_fn_detr(batch: list[Sample], processor: AutoImageProcessor) -> dict[str, Any]:
+    del processor
+    pixel_values = torch.stack([x.pixel_values for x in batch])
+    pixel_mask = torch.ones(
+        (pixel_values.shape[0], pixel_values.shape[2], pixel_values.shape[3]),
+        dtype=torch.long,
+    )
+    return {
+        "pixel_values": pixel_values,
+        "pixel_mask": pixel_mask,
+        "labels": [x.labels for x in batch],
+    }
 
 
 def move_labels_to_device(labels: list[dict[str, Any]], device: str) -> list[dict[str, Any]]:

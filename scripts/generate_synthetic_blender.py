@@ -280,6 +280,11 @@ def list_backgrounds(path: Path) -> list[Path]:
 
 def main() -> None:
     args = parse_args()
+    args.background_dir = args.background_dir.resolve()
+    args.rat_model = args.rat_model.resolve()
+    args.mouse_model = args.mouse_model.resolve()
+    args.cockroach_model = args.cockroach_model.resolve()
+    args.out_dir = args.out_dir.resolve()
     random.seed(args.seed)
 
     out_images = args.out_dir / "images"
@@ -314,7 +319,7 @@ def main() -> None:
             ctrl, meshes, imported_objs = import_model(models[cls])
             bbox = sample_pose_with_visibility(ctrl, meshes, cls, scene, cam)
 
-            bg = random.choice(backgrounds)
+            bg = random.choice(backgrounds).resolve()
             bg_tex_node.image = bpy.data.images.load(str(bg), check_existing=True)
 
             image_name = f"img_{i:06d}.png"

@@ -49,6 +49,69 @@ def infer_class(path: Path, keywords: list[str]) -> str | None:
     return None
 
 
+def load_category_map(root: Path) -> dict[int, str]:
+    categories_path = root / "categories_places365.txt"
+    if not categories_path.exists():
+        return {}
+
+    mapping: dict[int, str] = {}
+    for line in categories_path.read_text(encoding="utf-8").splitlines():
+        raw = line.strip()
+        if not raw:
+            continue
+        category, idx = raw.rsplit(" ", 1)
+        mapping[int(idx)] = category.strip("/")
+    return mapping
+
+
+def collect_flat_val_split(
+    root: Path,
+    out: Path,
+    mode: str,
+    keywords: list[str],
+    max_per_class: int,
+) -> tuple[dict[str, int], list[tuple[str, str, str]], int]:
+    labels_path = root / "places365_val.txt"
+    image_root = root / "val_256"
+    category_map = load_category_map(root)
+    if not labels_path.exists() or not image_root.exists() or not category_map:
+        return {}, [], 0
+
+    class_counts: dict[str, int] = {}
+    rows: list[tuple[str, str, str]] = []
+    scanned = 0
+
+    for line in labels_path.read_text(encoding="utf-8").splitlines():
+        raw = line.strip()
+        if not raw:
+            continue
+        rel_name, idx_str = raw.split()
+        scanned += 1
+        cls_path = category_map.get(int(idx_str))
+        if cls_path is None:
+            continue
+        cls = infer_class(Path(cls_path), keywords)
+        if cls is None:
+            continue
+
+        count = class_counts.get(cls, 0)
+        if max_per_class > 0 and count >= max_per_class:
+            continue
+
+        src = image_root / rel_name
+        if not src.exists() or not is_image(src):
+            continue
+
+        rel_out = f"{cls}/{count:06d}{src.suffix.lower()}"
+        dst = out / rel_out
+        link_or_copy(src, dst, mode)
+
+        class_counts[cls] = count + 1
+        rows.append((str(src.resolve()), str(dst), cls))
+
+    return class_counts, rows, scanned
+
+
 def link_or_copy(src: Path, dst: Path, mode: str) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     if dst.exists():
@@ -73,26 +136,35 @@ def main() -> None:
     manifest_path = out / "manifest.csv"
     rows: list[tuple[str, str, str]] = []
 
-    scanned = 0
-    for path in root.rglob("*"):
-        if not path.is_file() or not is_image(path):
-            continue
-        scanned += 1
+    class_counts, rows, scanned = collect_flat_val_split(
+        root=root,
+        out=out,
+        mode=args.mode,
+        keywords=args.kitchen_keywords,
+        max_per_class=args.max_per_class,
+    )
 
-        cls = infer_class(path, args.kitchen_keywords)
-        if cls is None:
-            continue
+    if not rows:
+        scanned = 0
+        for path in root.rglob("*"):
+            if not path.is_file() or not is_image(path):
+                continue
+            scanned += 1
 
-        count = class_counts.get(cls, 0)
-        if args.max_per_class > 0 and count >= args.max_per_class:
-            continue
+            cls = infer_class(path, args.kitchen_keywords)
+            if cls is None:
+                continue
 
-        rel_name = f"{cls}/{count:06d}{path.suffix.lower()}"
-        dst = out / rel_name
-        link_or_copy(path, dst, args.mode)
+            count = class_counts.get(cls, 0)
+            if args.max_per_class > 0 and count >= args.max_per_class:
+                continue
 
-        class_counts[cls] = count + 1
-        rows.append((str(path.resolve()), str(dst), cls))
+            rel_name = f"{cls}/{count:06d}{path.suffix.lower()}"
+            dst = out / rel_name
+            link_or_copy(path, dst, args.mode)
+
+            class_counts[cls] = count + 1
+            rows.append((str(path.resolve()), str(dst), cls))
 
     with manifest_path.open("w", newline="") as f:
         w = csv.writer(f)
