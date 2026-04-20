@@ -180,6 +180,50 @@ Key currently generated artifacts:
 - Video-frame v4 dataset audit:
   - `outputs/video_frame_smoke_v4_audit.json`
 
+## Repository Layout
+
+```text
+Synthetic-Data-Generation-for-Pest-Detection/
+├── assets/
+│   └── models/
+│       ├── rat/                         # local .glb binaries + curated candidates
+│       ├── mouse/
+│       ├── cockroach/
+│       ├── raw/                         # local raw model downloads
+│       ├── MODEL_MANIFEST.md
+│       ├── MODEL_AUDIT.md
+│       └── sketchfab_model_catalog.csv
+├── data/
+│   ├── raw/                             # local background images, not tracked in git
+│   ├── generated/                       # local generated datasets, not tracked in git
+│   └── splits/                          # local split JSONs, not tracked in git
+├── data_sources/
+│   └── SYNTHETIC_DATA_SOURCES.md
+├── outputs/                             # local checkpoints, evals, diagnostics, not tracked in git
+├── scripts/
+│   ├── generate_synthetic_blender.py
+│   ├── generate_synthetic_video_blender.py
+│   ├── flatten_video_frames_for_detection.py
+│   ├── split_detection_dataset.py
+│   ├── train_detr.py
+│   ├── eval_detr.py
+│   ├── diagnose_detr_predictions.py
+│   ├── train_fasterrcnn.py
+│   ├── eval_fasterrcnn.py
+│   ├── diagnose_fasterrcnn_predictions.py
+│   └── audit_detection_dataset.py
+├── submissions/
+│   └── README.md
+├── environment.yml
+├── README.md
+├── PROJECT_STATUS.md
+├── PROJECT_EXECUTION_PLAN.md
+├── REQUIREMENTS_GAP_ANALYSIS.md
+├── VIDEO_GENERATION_PLAN.md
+├── WINDOWS_RUN_TROUBLESHOOTING.md
+└── DOCUMENTATION_GUIDE.md
+```
+
 ## Technical Flow
 
 ### Current Implemented Pipeline
