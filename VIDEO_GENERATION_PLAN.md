@@ -26,13 +26,13 @@ The repository already has:
 - dataset split utilities
 - DETR training and evaluation scripts
 - a working video MVP:
-  - `scripts/generate_synthetic_video_blender.py`
+  - [generate_synthetic_video_blender.py](scripts/generate_synthetic_video_blender.py)
   - per-clip frames
   - per-frame labels
   - clip metadata
   - `manifest.csv`
 - a flattening utility for reusing video frames in the current training pipeline:
-  - `scripts/flatten_video_frames_for_detection.py`
+  - [flatten_video_frames_for_detection.py](scripts/flatten_video_frames_for_detection.py)
 
 That means the main missing work is no longer the first temporal prototype. The main missing work is now extending that prototype into a full assignment-scale video pipeline.
 
@@ -46,6 +46,7 @@ The repository can now:
 - export frame images
 - export YOLO-format labels for each frame
 - save clip metadata
+- assemble rendered frame folders into MP4 demo clips
 - flatten video frames into `images/` + `labels/` for DETR reuse
 - generate negative clips with no pest present
 - generate negative frames inside otherwise positive clips
@@ -57,58 +58,84 @@ What still remains:
 - larger numbers of clips
 - more realistic motion
 - optional multi-pest scenes
-- video packaging
+- large-scale video packaging
 - scale-out execution
 
 ## Current Verified Checkpoint
 
-As of April 19, 2026, the repository has already validated:
+As of April 20, 2026, the repository has already validated:
 
-- `assets/models/MODEL_AUDIT.md`
+- [MODEL_AUDIT.md](assets/models/MODEL_AUDIT.md)
   - raw downloads were filtered into curated per-class pools
   - the generator now supports model directories plus exclude lists
-- `data/generated/video_clip_smoke_v4/`
+- [video_clip_smoke_v4](data/generated/video_clip_smoke_v4/)
   - 9 clips
   - 30 seconds each at 4 FPS
   - 1080 rendered frames total
   - all three pest classes represented
   - 2 fully negative clips plus negative frames inside positive clips
   - curated rat, mouse, and cockroach model pools used
-- `data/generated/video_frame_smoke_v4/`
+- [video_frame_smoke_v4](data/generated/video_frame_smoke_v4/)
   - 1080 flattened frame-label pairs for detector training reuse
-- `outputs/detr_video_frame_smoke_v4/`
+- [detr_video_frame_smoke_v4](outputs/detr_video_frame_smoke_v4/)
   - DETR smoke training completed
   - best validation loss: `1.075053`
-- `outputs/detr_video_frame_smoke_v4/eval_test.json`
+- [eval_test.json](outputs/detr_video_frame_smoke_v4/eval_test.json)
   - held-out test recall at confidence `0.5`: `0.0`
   - frame FPR on negative test frames: `0.0`
-- `outputs/detr_video_frame_smoke_v4/eval_test_thr020.json`
+- [eval_test_thr020.json](outputs/detr_video_frame_smoke_v4/eval_test_thr020.json)
   - lower-threshold diagnostic still produced `0.0` recall
-- `outputs/detr_video_frame_smoke_v4/diagnostics/summary.json`
+- [diagnostics summary](outputs/detr_video_frame_smoke_v4/diagnostics/summary.json)
   - positive and negative frame top scores both cluster around `0.025`
   - thresholds `>= 0.05` suppress every prediction
   - threshold `0.01` recovers roughly `46-50%` recall, but precision collapses and negative-frame FPR becomes `1.0`
-- `outputs/detr_video_frame_smoke_v4/diagnostics_topk/summary.json`
+- [diagnostics_topk summary](outputs/detr_video_frame_smoke_v4/diagnostics_topk/summary.json)
   - `top-1` on test still yields `0.0` recall
   - `top-3` recovers only about `12%` recall
   - even capped predictions still produce `frame_fpr = 1.0` on negative test frames
-- `outputs/fasterrcnn_video_frame_smoke_v4_stable/eval_test.json`
+- [fasterrcnn stable eval_test.json](outputs/fasterrcnn_video_frame_smoke_v4_stable/eval_test.json)
   - a simpler torchvision detector reaches `recall = 1.0`, `precision = 1.0`, `frame_fpr = 0.0` on the same v4 test split
   - this suggests the current video data pipeline is at least sufficient for one strong baseline detector
-- `outputs/fasterrcnn_video_frame_smoke_v4_stable/diagnostics/summary.json`
+- [fasterrcnn stable diagnostics summary](outputs/fasterrcnn_video_frame_smoke_v4_stable/diagnostics/summary.json)
   - positive-frame top scores are well separated from negative-frame top scores
   - negative test frames produce top scores of `0.0` throughout the split
   - `top-1` predictions remain perfect at threshold `0.2`
-- `outputs/video_frame_smoke_v4_audit.json`
+- [video_frame_smoke_v4_audit.json](outputs/video_frame_smoke_v4_audit.json)
   - train/val/test are all roughly `55%` negative frames
   - with batch size `2`, about `30%` of mini-batches are expected to be all-negative
   - this likely explains most skipped non-finite Faster R-CNN batches without pointing to a label-format bug
-- `outputs/fasterrcnn_video_frame_smoke_v4_balanced/eval_test.json`
+- [fasterrcnn balanced eval_test.json](outputs/fasterrcnn_video_frame_smoke_v4_balanced/eval_test.json)
   - `positive_anchor` batching removes skipped train/val batches entirely
   - held-out recall remains `1.0` at threshold `0.5`
   - frame-level FPR remains `0.0`
+- [video_demo_v1](data/generated/video_demo_v1/)
+  - 3 demo clips
+  - 30 seconds each at 4 FPS
+  - MP4s assembled for direct qualitative review
+- [video_clip_smoke_v5](data/generated/video_clip_smoke_v5/)
+  - 12 clips
+  - 30 seconds each at 4 FPS
+  - 1440 rendered frames total
+  - all three pest classes represented
+  - negative clips and negative frames still included
+- [video_frame_smoke_v5](data/generated/video_frame_smoke_v5/)
+  - 1440 flattened frame-label pairs for detector training reuse
+- [video_frame_smoke_v5_audit.json](outputs/video_frame_smoke_v5_audit.json)
+  - train/val/test remain about `54%` negative frames
+  - batch size `2` still implies about `29%` all-negative mini-batches under IID sampling
+- [fasterrcnn balanced v5 eval_test.json](outputs/fasterrcnn_video_frame_smoke_v5_balanced/eval_test.json)
+  - held-out test recall `1.0`
+  - precision `1.0`
+  - frame FPR `0.0`
+- [fasterrcnn balanced v5 diagnostics summary](outputs/fasterrcnn_video_frame_smoke_v5_balanced/diagnostics/summary.json)
+  - positive-frame top scores stay high
+  - negative-frame top scores remain `0.0`
+  - thresholds `0.5` and `0.2` are both clean
+- report-ready figures now exist:
+  - [report_figures_v4_comparison](outputs/report_figures_v4_comparison/)
+  - [report_figures_v5_final](outputs/report_figures_v5_final/)
 
-This means the pipeline gap has shifted again. The blocker is no longer obviously broken raw assets or obviously broken generation. The current local baseline is now Faster R-CNN with `positive_anchor` batching, and the next blocker is "how fast can the project scale the video pipeline around the detector family that already works, while keeping negative-batch handling explicit and stable?"
+This means the pipeline gap has shifted again. The blocker is no longer obviously broken raw assets or obviously broken generation. The current local baseline is now Faster R-CNN with `positive_anchor` batching on `video_frame_smoke_v5`, and the next blocker is "how fast can the project scale the video pipeline around the detector family that already works, while keeping negative-batch handling explicit and stable?"
 
 ## Recommended Development Strategy
 

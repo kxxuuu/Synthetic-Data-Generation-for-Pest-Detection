@@ -15,7 +15,7 @@ The repository does **not** yet represent the full final assignment submission.
 
 The safest current positioning is:
 
-**Phase 1 baseline + Phase 2 smoke-scale video extension**
+**Phase 1 baseline + Phase 2 validated local video baseline**
 
 That means:
 
@@ -31,21 +31,30 @@ But:
 - assignment-scale 30-60 second batch generation is not done yet beyond smoke-scale runs
 - final claims on instructor-run test videos are not supported yet
 
+## Report Close-Out Status
+
+The project is now in a practical report-writing phase.
+
+- There is a stable local baseline to present.
+- There are demo MP4s to show.
+- There are report-ready comparison and summary figures to cite.
+- The remaining uncertainty is about final assignment-scale generalization, not whether the local synthetic pipeline works.
+
 ## Current Headline Results
 
 ### Synthetic video pipeline
 
 Current best smoke-scale video dataset:
 
-- [video_clip_smoke_v4](data/generated/video_clip_smoke_v4/)
-- [video_frame_smoke_v4](data/generated/video_frame_smoke_v4/)
-- [split.json](data/splits/video_frame_smoke_v4/split.json)
+- [video_clip_smoke_v5](data/generated/video_clip_smoke_v5/)
+- [video_frame_smoke_v5](data/generated/video_frame_smoke_v5/)
+- [split.json](data/splits/video_frame_smoke_v5/split.json)
 
 This dataset includes:
 
-- 9 clips
+- 12 clips
 - 30 seconds each
-- 1080 rendered frames total
+- 1440 rendered frames total
 - all three pest classes
 - negative clips and negative frames
 
@@ -71,7 +80,7 @@ The strongest current local detector baseline is Faster R-CNN.
 
 Recommended baseline:
 
-- [fasterrcnn_video_frame_smoke_v4_balanced](outputs/fasterrcnn_video_frame_smoke_v4_balanced/)
+- [fasterrcnn_video_frame_smoke_v5_balanced](outputs/fasterrcnn_video_frame_smoke_v5_balanced/)
 
 Why this one is recommended:
 
@@ -82,16 +91,17 @@ Why this one is recommended:
 
 Key files:
 
-- [summary.json](outputs/fasterrcnn_video_frame_smoke_v4_balanced/summary.json)
-- [train.log](outputs/fasterrcnn_video_frame_smoke_v4_balanced/train.log)
-- [eval_test.json](outputs/fasterrcnn_video_frame_smoke_v4_balanced/eval_test.json)
-- [eval_test_thr020.json](outputs/fasterrcnn_video_frame_smoke_v4_balanced/eval_test_thr020.json)
+- [summary.json](outputs/fasterrcnn_video_frame_smoke_v5_balanced/summary.json)
+- [train.log](outputs/fasterrcnn_video_frame_smoke_v5_balanced/train.log)
+- [eval_test.json](outputs/fasterrcnn_video_frame_smoke_v5_balanced/eval_test.json)
+- [eval_test_thr020.json](outputs/fasterrcnn_video_frame_smoke_v5_balanced/eval_test_thr020.json)
+- [diagnostics summary](outputs/fasterrcnn_video_frame_smoke_v5_balanced/diagnostics/summary.json)
 
 Safe metric wording:
 
-- On the local held-out synthetic `video_frame_smoke_v4` test split, the current Faster R-CNN baseline achieved:
+- On the local held-out synthetic `video_frame_smoke_v5` test split, the current Faster R-CNN baseline achieved:
   - recall `1.0`
-  - precision `0.9865` at confidence threshold `0.5`
+  - precision `1.0` at confidence thresholds `0.5` and `0.2`
   - frame-level false positive rate `0.0`
 
 Important caveat:
@@ -179,14 +189,28 @@ Good figure/table sources:
 
 - Pipeline diagrams:
   - [README.md](README.md)
+- Demo videos:
+  - [clip_000000 demo.mp4](data/generated/video_demo_v1/clips/clip_000000/demo.mp4)
+  - [clip_000001 demo.mp4](data/generated/video_demo_v1/clips/clip_000001/demo.mp4)
+  - [clip_000002 demo.mp4](data/generated/video_demo_v1/clips/clip_000002/demo.mp4)
 - DETR diagnostic overlays:
   - [detr overlays](outputs/detr_video_frame_smoke_v4/diagnostics/test/overlays/)
 - Faster R-CNN diagnostic overlays:
-  - [fasterrcnn overlays](outputs/fasterrcnn_video_frame_smoke_v4_stable/diagnostics/test/overlays/)
+  - [v5 overlays](outputs/fasterrcnn_video_frame_smoke_v5_balanced/diagnostics/test/overlays/)
+- Report figures:
+  - [v4 comparison figures](outputs/report_figures_v4_comparison/)
+  - [v5 final figures](outputs/report_figures_v5_final/)
 - Evaluation tables:
   - [detr eval_test.json](outputs/detr_video_frame_smoke_v4/eval_test.json)
-  - [fasterrcnn balanced eval_test.json](outputs/fasterrcnn_video_frame_smoke_v4_balanced/eval_test.json)
-  - [fasterrcnn balanced eval_test_thr020.json](outputs/fasterrcnn_video_frame_smoke_v4_balanced/eval_test_thr020.json)
+  - [fasterrcnn v5 eval_test.json](outputs/fasterrcnn_video_frame_smoke_v5_balanced/eval_test.json)
+  - [fasterrcnn v5 eval_test_thr020.json](outputs/fasterrcnn_video_frame_smoke_v5_balanced/eval_test_thr020.json)
+
+If the report teammate only has a few minutes, start with these:
+
+1. [REPORT_BRIEFING.md](REPORT_BRIEFING.md)
+2. [v5 final figures](outputs/report_figures_v5_final/)
+3. [video_demo_v1](data/generated/video_demo_v1/)
+4. [fasterrcnn v5 eval_test.json](outputs/fasterrcnn_video_frame_smoke_v5_balanced/eval_test.json)
 
 ## Questions To Ask The Coding Team
 

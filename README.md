@@ -5,7 +5,7 @@ STA 561 Final Project
 
 ## Current Verified State
 
-- This repository currently represents a **Phase 1 baseline plus a Phase 2 smoke-scale video extension**, not the full final assignment pipeline.
+- This repository currently represents a **Phase 1 baseline plus a Phase 2 validated local video baseline**, not the full final assignment pipeline.
 - Windows environment setup has been tested on this repository.
 - A Conda environment named `pest-synth` is working with:
   - Python 3.10
@@ -48,16 +48,27 @@ STA 561 Final Project
   - `scripts/eval_fasterrcnn.py`
   - `scripts/diagnose_fasterrcnn_predictions.py`
   - `scripts/audit_detection_dataset.py`
+  - `scripts/assemble_video_from_frames.py`
+  - `scripts/plot_baseline_report_figures.py`
   - `outputs/fasterrcnn_video_frame_smoke_v4_stable/`
   - `outputs/fasterrcnn_video_frame_smoke_v4_stable/eval_test.json`
   - `outputs/fasterrcnn_video_frame_smoke_v4_stable/diagnostics/summary.json`
   - `outputs/fasterrcnn_video_frame_smoke_v4_balanced/`
   - `outputs/fasterrcnn_video_frame_smoke_v4_balanced/eval_test.json`
   - `outputs/video_frame_smoke_v4_audit.json`
+- A larger smoke-scale video baseline has now been validated locally:
+  - `data/generated/video_demo_v1/`
+  - `data/generated/video_clip_smoke_v5/`
+  - `data/generated/video_frame_smoke_v5/`
+  - `data/splits/video_frame_smoke_v5/split.json`
+  - `outputs/fasterrcnn_video_frame_smoke_v5_balanced/`
+  - `outputs/video_frame_smoke_v5_audit.json`
+  - `outputs/report_figures_v4_comparison/`
+  - `outputs/report_figures_v5_final/`
 - The current recommended local detector baseline is:
-  - Faster R-CNN on `video_frame_smoke_v4`
+  - Faster R-CNN on `video_frame_smoke_v5`
   - with `positive_anchor` batching
-  - using `outputs/fasterrcnn_video_frame_smoke_v4_balanced/`
+  - using `outputs/fasterrcnn_video_frame_smoke_v5_balanced/`
 
 ## Phase Scope
 
@@ -65,6 +76,7 @@ What this repository currently does:
 
 - generates labeled synthetic pest images
 - generates video-style frame sequences with per-frame labels, including 30-second smoke clips
+- assembles 30-second demo MP4s from rendered frame folders
 - flattens generated video frames back into the current detection training format
 - trains a DETR-based detector on those images
 - trains a DETR-based detector on flattened video-derived frames
@@ -81,6 +93,21 @@ For a formal requirement-by-requirement comparison, see:
 
 - `REQUIREMENTS_GAP_ANALYSIS.md`
 - `VIDEO_GENERATION_PLAN.md`
+
+## Close-Out Status
+
+The repository is now in a practical close-out state for the local synthetic baseline.
+
+- The current engineering baseline is [fasterrcnn_video_frame_smoke_v5_balanced](outputs/fasterrcnn_video_frame_smoke_v5_balanced/).
+- The current smoke-scale demo artifacts are in [video_demo_v1](data/generated/video_demo_v1/).
+- The current report-ready figure assets are in [report_figures_v4_comparison](outputs/report_figures_v4_comparison/) and [report_figures_v5_final](outputs/report_figures_v5_final/).
+- The fastest handoff for a report-writing teammate is [REPORT_BRIEFING.md](REPORT_BRIEFING.md).
+
+What still remains is mostly final-project polish rather than local pipeline rescue:
+
+- assignment-scale `30-60s` generation beyond smoke-scale runs
+- single-photo kitchen layout adaptation
+- external final validation on instructor-run test videos
 
 ## Progress Summary
 
@@ -107,12 +134,16 @@ Current progress is:
 - Faster R-CNN diagnostics also look healthy on v4: positive-frame top scores are high, negative-frame top scores are exactly `0.0`, and `top-1` predictions already recover perfect test recall at moderate thresholds
 - v4 dataset audit shows that all splits are roughly `55%` negative frames, so with batch size `2` the expected all-negative batch rate is about `30%`, which is consistent with the skipped non-finite Faster R-CNN batches
 - A positive-anchor Faster R-CNN batching strategy has now been validated locally: it eliminates skipped train/val batches entirely while preserving `1.0` held-out recall on v4
+- a larger `video_frame_smoke_v5` dataset now also trains and evaluates cleanly with the same baseline
+- the current v5 Faster R-CNN baseline reaches `1.0` recall, `1.0` precision, and `0.0` frame-level FPR on the held-out synthetic test split at thresholds `0.5` and `0.2`
+- 30-second demo clips have been assembled into MP4 files for direct qualitative review
+- report-ready figures are now generated locally for both `v4` detector comparison and `v5` final baseline reporting
 
 In short:
 
 - the core rendering, labeling, flattening, and training loop now works end to end
-- the current detector bottleneck is no longer general held-out recall on smoke-scale data
-- the biggest remaining gap is scaling the video pipeline to longer clips, more clips, and assignment-scale runs while preserving the current Faster R-CNN baseline quality
+- the current Faster R-CNN detector bottleneck is no longer general held-out recall on smoke-scale data
+- the biggest remaining gap is scaling the video pipeline to longer clips, more clips, and assignment-scale runs while preserving the current `v5` baseline quality
 
 ## Current Outputs
 
@@ -179,6 +210,45 @@ Key currently generated artifacts:
   - `outputs/fasterrcnn_video_frame_smoke_v4_balanced/eval_test_thr020.json`
 - Video-frame v4 dataset audit:
   - `outputs/video_frame_smoke_v4_audit.json`
+- Video demo clips assembled as MP4:
+  - `data/generated/video_demo_v1/clips/clip_000000/demo.mp4`
+  - `data/generated/video_demo_v1/clips/clip_000001/demo.mp4`
+  - `data/generated/video_demo_v1/clips/clip_000002/demo.mp4`
+- Video smoke clip dataset v5:
+  - `data/generated/video_clip_smoke_v5/`
+- Flattened video-frame dataset v5:
+  - `data/generated/video_frame_smoke_v5/`
+- Flattened video-frame split v5:
+  - `data/splits/video_frame_smoke_v5/split.json`
+- Video-frame Faster R-CNN balanced-batching output v5:
+  - `outputs/fasterrcnn_video_frame_smoke_v5_balanced/`
+  - `outputs/fasterrcnn_video_frame_smoke_v5_balanced/eval_test.json`
+  - `outputs/fasterrcnn_video_frame_smoke_v5_balanced/eval_test_thr020.json`
+  - `outputs/fasterrcnn_video_frame_smoke_v5_balanced/diagnostics/summary.json`
+- Video-frame v5 dataset audit:
+  - `outputs/video_frame_smoke_v5_audit.json`
+- Report figures:
+  - `outputs/report_figures_v4_comparison/detector_comparison.png`
+  - `outputs/report_figures_v4_comparison/threshold_sensitivity.png`
+  - `outputs/report_figures_v4_comparison/dataset_composition.png`
+  - `outputs/report_figures_v5_final/detector_comparison.png`
+  - `outputs/report_figures_v5_final/threshold_sensitivity.png`
+  - `outputs/report_figures_v5_final/dataset_composition.png`
+
+## Recommended Handoff
+
+For a teammate continuing model work:
+
+- share [video_frame_smoke_v5](data/generated/video_frame_smoke_v5/)
+- share [split.json](data/splits/video_frame_smoke_v5/split.json)
+- share [fasterrcnn_video_frame_smoke_v5_balanced](outputs/fasterrcnn_video_frame_smoke_v5_balanced/)
+
+For a teammate writing the report:
+
+- point them to [REPORT_BRIEFING.md](REPORT_BRIEFING.md)
+- share [video_demo_v1](data/generated/video_demo_v1/)
+- share [report_figures_v4_comparison](outputs/report_figures_v4_comparison/)
+- share [report_figures_v5_final](outputs/report_figures_v5_final/)
 
 ## Repository Layout
 
@@ -211,7 +281,9 @@ Synthetic-Data-Generation-for-Pest-Detection/
 │   ├── train_fasterrcnn.py
 │   ├── eval_fasterrcnn.py
 │   ├── diagnose_fasterrcnn_predictions.py
-│   └── audit_detection_dataset.py
+│   ├── audit_detection_dataset.py
+│   ├── assemble_video_from_frames.py
+│   └── plot_baseline_report_figures.py
 ├── submissions/
 │   └── README.md
 ├── environment.yml
@@ -221,7 +293,8 @@ Synthetic-Data-Generation-for-Pest-Detection/
 ├── REQUIREMENTS_GAP_ANALYSIS.md
 ├── VIDEO_GENERATION_PLAN.md
 ├── WINDOWS_RUN_TROUBLESHOOTING.md
-└── DOCUMENTATION_GUIDE.md
+├── DOCUMENTATION_GUIDE.md
+└── REPORT_BRIEFING.md
 ```
 
 ## Technical Flow

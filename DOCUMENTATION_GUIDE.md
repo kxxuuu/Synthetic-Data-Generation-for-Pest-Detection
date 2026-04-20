@@ -130,8 +130,21 @@ For a report-writing teammate:
 3. `PROJECT_STATUS.md`
 4. `REQUIREMENTS_GAP_ANALYSIS.md`
 
+For close-out / final packaging:
+
+1. `README.md`
+2. `PROJECT_STATUS.md`
+3. `REPORT_BRIEFING.md`
+4. `submissions/README.md`
+
 ## Recommended Maintenance Rule
 
 Keep `README.md` concise and navigational.
 
 Move detailed explanations into the specialized documents above instead of letting the main README become the only place where project knowledge lives.
+
+When the current recommended baseline changes, update these together:
+
+1. `README.md`
+2. `PROJECT_STATUS.md`
+3. `REPORT_BRIEFING.md`

@@ -13,7 +13,7 @@ Based on `final_project_2026-1.pdf`:
   - False positive rate < 5%
   - End-to-end pipeline including training a ViT-based detector.
 
-## 1.1 Current Checkpoint (April 19, 2026)
+## 1.1 Current Checkpoint (April 20, 2026)
 
 What is already working:
 
@@ -21,16 +21,17 @@ What is already working:
 - video-style clip generation with per-frame labels
 - clip sharding controls (`start_clip`, duration-derived frame counts)
 - negative clips and negative frames
+- demo MP4 assembly from rendered frame folders
 - flattening video frames back into the detector training format
 - DETR smoke training on image data and video-derived frame data
 - held-out video-frame evaluation
 
 What the latest smoke-scale video runs proved:
 
-- `video_clip_smoke_v4` generated 9 curated-model clips at 30 seconds each
+- [video_clip_smoke_v4](data/generated/video_clip_smoke_v4/) generated 9 curated-model clips at 30 seconds each
 - all three pest classes were covered, with curated model pools and 2 fully negative clips
 - negative samples were included and still suppressed false positives on the held-out negative frames
-- training quality improved substantially (`best val loss = 1.075053` on `detr_video_frame_smoke_v4`)
+- training quality improved substantially (`best val loss = 1.075053` on [detr_video_frame_smoke_v4](outputs/detr_video_frame_smoke_v4/))
 - threshold diagnostics now show that positive and negative frames both receive top scores around `0.025`
 - below `0.01`, recall partially recovers but precision collapses and every negative frame receives predictions
 - top-k diagnostics now show that even `top-1` predictions on test have `0.0` recall while negative-frame FPR remains `1.0`
@@ -38,14 +39,21 @@ What the latest smoke-scale video runs proved:
 - Faster R-CNN diagnostics now show strong score separation on the same v4 split: positive top scores stay high while negative-frame top scores are `0.0`
 - the v4 audit also shows all splits are roughly `55%` negative frames, so batch size `2` naturally creates about `30%` all-negative mini-batches, which likely explains most skipped non-finite Faster R-CNN batches
 - a `positive_anchor` batching strategy now removes skipped train/val batches entirely while preserving `1.0` recall and `0.0` frame FPR at threshold `0.5`
+- [video_clip_smoke_v5](data/generated/video_clip_smoke_v5/) extends the smoke run to 12 clips / 1440 frames while preserving 30-second duration and negative sampling
+- [video_frame_smoke_v5](data/generated/video_frame_smoke_v5/) and [split.json](data/splits/video_frame_smoke_v5/split.json) now provide a larger held-out synthetic benchmark
+- [fasterrcnn_video_frame_smoke_v5_balanced](outputs/fasterrcnn_video_frame_smoke_v5_balanced/) keeps `positive_anchor` batching stable with zero skipped train/val batches
+- v5 test metrics remain perfect at both [eval_test.json](outputs/fasterrcnn_video_frame_smoke_v5_balanced/eval_test.json) and [eval_test_thr020.json](outputs/fasterrcnn_video_frame_smoke_v5_balanced/eval_test_thr020.json)
+- [video_demo_v1](data/generated/video_demo_v1/) now includes 30-second MP4 demo clips for rat, mouse, and cockroach
+- report-ready figures now exist at [report_figures_v4_comparison](outputs/report_figures_v4_comparison/) and [report_figures_v5_final](outputs/report_figures_v5_final/)
 
 What remains highest priority:
 
 - lock Faster R-CNN with `positive_anchor` batching as the working detector baseline unless DETR remains a hard requirement
-- scale from smoke-scale 30-second clips to assignment-scale 30-60 second batches
+- scale from the current `v5` smoke-scale 30-second clips to assignment-scale 30-60 second batches
 - keep all-negative mini-batch handling explicit during detector training and cluster runs
 - add scene adaptation from a single kitchen photo
 - move from local smoke runs to cluster-ready generation and training jobs
+- fold the current demo clips, overlays, and report figures into the final write-up package
 
 ## 2. Preconditions Checklist
 
