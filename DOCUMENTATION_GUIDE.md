@@ -19,6 +19,18 @@ It should answer:
 
 ## Status and Planning Docs
 
+### `REPORT_BRIEFING.md`
+
+Use this file as the fastest handoff for teammates writing the report.
+
+It should answer:
+
+- what the current project phase is
+- which results are safe to cite
+- which claims should be avoided
+- which detector baseline is current
+- which docs and output files are most relevant for writing
+
 ### `PROJECT_STATUS.md`
 
 Use this file for the current project state.
@@ -110,6 +122,13 @@ For a new teammate:
 3. `REQUIREMENTS_GAP_ANALYSIS.md`
 4. `VIDEO_GENERATION_PLAN.md`
 5. `WINDOWS_RUN_TROUBLESHOOTING.md` if running on Windows
+
+For a report-writing teammate:
+
+1. `REPORT_BRIEFING.md`
+2. `README.md`
+3. `PROJECT_STATUS.md`
+4. `REQUIREMENTS_GAP_ANALYSIS.md`
 
 ## Recommended Maintenance Rule
 

@@ -271,6 +271,7 @@ flowchart LR
 ## Documentation Map
 
 - Project status + runbook: `PROJECT_STATUS.md`
+- Report-writing handoff: `REPORT_BRIEFING.md`
 - Documentation guide: `DOCUMENTATION_GUIDE.md`
 - Execution plan: `PROJECT_EXECUTION_PLAN.md`
 - Data sources: `data_sources/SYNTHETIC_DATA_SOURCES.md`
@@ -290,6 +291,13 @@ Recommended reading order:
 3. `VIDEO_GENERATION_PLAN.md`
 4. `WINDOWS_RUN_TROUBLESHOOTING.md` if you are running locally on Windows
 
+If you are primarily writing the report rather than running code:
+
+1. `REPORT_BRIEFING.md`
+2. `README.md`
+3. `PROJECT_STATUS.md`
+4. `REQUIREMENTS_GAP_ANALYSIS.md`
+
 ## Team Workflow
 
 What is tracked in git:
@@ -298,6 +306,7 @@ What is tracked in git:
 - environment/config files
 - documentation
 - lightweight manifests and catalogs that describe external assets
+- report-briefing and status documents
 
 What is intentionally **not** tracked in git:
 
