@@ -37,9 +37,9 @@ But:
 
 Current best smoke-scale video dataset:
 
-- `data/generated/video_clip_smoke_v4/`
-- `data/generated/video_frame_smoke_v4/`
-- `data/splits/video_frame_smoke_v4/split.json`
+- [video_clip_smoke_v4](data/generated/video_clip_smoke_v4/)
+- [video_frame_smoke_v4](data/generated/video_frame_smoke_v4/)
+- [split.json](data/splits/video_frame_smoke_v4/split.json)
 
 This dataset includes:
 
@@ -55,9 +55,9 @@ DETR training works technically, but the held-out v4 result is poor.
 
 Key points:
 
-- `outputs/detr_video_frame_smoke_v4/eval_test.json`
-- `outputs/detr_video_frame_smoke_v4/diagnostics/summary.json`
-- `outputs/detr_video_frame_smoke_v4/diagnostics_topk/summary.json`
+- [eval_test.json](outputs/detr_video_frame_smoke_v4/eval_test.json)
+- [diagnostics summary](outputs/detr_video_frame_smoke_v4/diagnostics/summary.json)
+- [diagnostics_topk summary](outputs/detr_video_frame_smoke_v4/diagnostics_topk/summary.json)
 
 Safe summary:
 
@@ -71,7 +71,7 @@ The strongest current local detector baseline is Faster R-CNN.
 
 Recommended baseline:
 
-- `outputs/fasterrcnn_video_frame_smoke_v4_balanced/`
+- [fasterrcnn_video_frame_smoke_v4_balanced](outputs/fasterrcnn_video_frame_smoke_v4_balanced/)
 
 Why this one is recommended:
 
@@ -82,10 +82,10 @@ Why this one is recommended:
 
 Key files:
 
-- `outputs/fasterrcnn_video_frame_smoke_v4_balanced/summary.json`
-- `outputs/fasterrcnn_video_frame_smoke_v4_balanced/train.log`
-- `outputs/fasterrcnn_video_frame_smoke_v4_balanced/eval_test.json`
-- `outputs/fasterrcnn_video_frame_smoke_v4_balanced/eval_test_thr020.json`
+- [summary.json](outputs/fasterrcnn_video_frame_smoke_v4_balanced/summary.json)
+- [train.log](outputs/fasterrcnn_video_frame_smoke_v4_balanced/train.log)
+- [eval_test.json](outputs/fasterrcnn_video_frame_smoke_v4_balanced/eval_test.json)
+- [eval_test_thr020.json](outputs/fasterrcnn_video_frame_smoke_v4_balanced/eval_test_thr020.json)
 
 Safe metric wording:
 
@@ -161,32 +161,32 @@ A strong current narrative is:
 
 Recommended reading order:
 
-1. `REPORT_BRIEFING.md`
-2. `README.md`
-3. `PROJECT_STATUS.md`
-4. `REQUIREMENTS_GAP_ANALYSIS.md`
-5. `PROJECT_EXECUTION_PLAN.md`
-6. `VIDEO_GENERATION_PLAN.md`
-7. `submissions/README.md`
+1. [REPORT_BRIEFING.md](REPORT_BRIEFING.md)
+2. [README.md](README.md)
+3. [PROJECT_STATUS.md](PROJECT_STATUS.md)
+4. [REQUIREMENTS_GAP_ANALYSIS.md](REQUIREMENTS_GAP_ANALYSIS.md)
+5. [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md)
+6. [VIDEO_GENERATION_PLAN.md](VIDEO_GENERATION_PLAN.md)
+7. [submissions/README.md](submissions/README.md)
 
 Usually not necessary for a report-only teammate unless they need troubleshooting detail:
 
-- `WINDOWS_RUN_TROUBLESHOOTING.md`
+- [WINDOWS_RUN_TROUBLESHOOTING.md](WINDOWS_RUN_TROUBLESHOOTING.md)
 
 ## Useful Figures And Tables
 
 Good figure/table sources:
 
 - Pipeline diagrams:
-  - `README.md`
+  - [README.md](README.md)
 - DETR diagnostic overlays:
-  - `outputs/detr_video_frame_smoke_v4/diagnostics/test/overlays/`
+  - [detr overlays](outputs/detr_video_frame_smoke_v4/diagnostics/test/overlays/)
 - Faster R-CNN diagnostic overlays:
-  - `outputs/fasterrcnn_video_frame_smoke_v4_stable/diagnostics/test/overlays/`
+  - [fasterrcnn overlays](outputs/fasterrcnn_video_frame_smoke_v4_stable/diagnostics/test/overlays/)
 - Evaluation tables:
-  - `outputs/detr_video_frame_smoke_v4/eval_test.json`
-  - `outputs/fasterrcnn_video_frame_smoke_v4_balanced/eval_test.json`
-  - `outputs/fasterrcnn_video_frame_smoke_v4_balanced/eval_test_thr020.json`
+  - [detr eval_test.json](outputs/detr_video_frame_smoke_v4/eval_test.json)
+  - [fasterrcnn balanced eval_test.json](outputs/fasterrcnn_video_frame_smoke_v4_balanced/eval_test.json)
+  - [fasterrcnn balanced eval_test_thr020.json](outputs/fasterrcnn_video_frame_smoke_v4_balanced/eval_test_thr020.json)
 
 ## Questions To Ask The Coding Team
 

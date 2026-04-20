@@ -270,33 +270,33 @@ flowchart LR
 
 ## Documentation Map
 
-- Project status + runbook: `PROJECT_STATUS.md`
-- Report-writing handoff: `REPORT_BRIEFING.md`
-- Documentation guide: `DOCUMENTATION_GUIDE.md`
-- Execution plan: `PROJECT_EXECUTION_PLAN.md`
-- Data sources: `data_sources/SYNTHETIC_DATA_SOURCES.md`
-- Requirement gap analysis: `REQUIREMENTS_GAP_ANALYSIS.md`
-- Video generation plan: `VIDEO_GENERATION_PLAN.md`
-- Windows rerun notes: `WINDOWS_RUN_TROUBLESHOOTING.md`
-- Submission notes: `submissions/README.md`
-- Model manifest: `assets/models/MODEL_MANIFEST.md`
-- Model audit: `assets/models/MODEL_AUDIT.md`
+- Project status + runbook: [PROJECT_STATUS.md](PROJECT_STATUS.md)
+- Report-writing handoff: [REPORT_BRIEFING.md](REPORT_BRIEFING.md)
+- Documentation guide: [DOCUMENTATION_GUIDE.md](DOCUMENTATION_GUIDE.md)
+- Execution plan: [PROJECT_EXECUTION_PLAN.md](PROJECT_EXECUTION_PLAN.md)
+- Data sources: [SYNTHETIC_DATA_SOURCES.md](data_sources/SYNTHETIC_DATA_SOURCES.md)
+- Requirement gap analysis: [REQUIREMENTS_GAP_ANALYSIS.md](REQUIREMENTS_GAP_ANALYSIS.md)
+- Video generation plan: [VIDEO_GENERATION_PLAN.md](VIDEO_GENERATION_PLAN.md)
+- Windows rerun notes: [WINDOWS_RUN_TROUBLESHOOTING.md](WINDOWS_RUN_TROUBLESHOOTING.md)
+- Submission notes: [submissions/README.md](submissions/README.md)
+- Model manifest: [MODEL_MANIFEST.md](assets/models/MODEL_MANIFEST.md)
+- Model audit: [MODEL_AUDIT.md](assets/models/MODEL_AUDIT.md)
 
 ## Start Here
 
 Recommended reading order:
 
-1. `PROJECT_STATUS.md`
-2. `REQUIREMENTS_GAP_ANALYSIS.md`
-3. `VIDEO_GENERATION_PLAN.md`
-4. `WINDOWS_RUN_TROUBLESHOOTING.md` if you are running locally on Windows
+1. [PROJECT_STATUS.md](PROJECT_STATUS.md)
+2. [REQUIREMENTS_GAP_ANALYSIS.md](REQUIREMENTS_GAP_ANALYSIS.md)
+3. [VIDEO_GENERATION_PLAN.md](VIDEO_GENERATION_PLAN.md)
+4. [WINDOWS_RUN_TROUBLESHOOTING.md](WINDOWS_RUN_TROUBLESHOOTING.md) if you are running locally on Windows
 
 If you are primarily writing the report rather than running code:
 
-1. `REPORT_BRIEFING.md`
-2. `README.md`
-3. `PROJECT_STATUS.md`
-4. `REQUIREMENTS_GAP_ANALYSIS.md`
+1. [REPORT_BRIEFING.md](REPORT_BRIEFING.md)
+2. [README.md](README.md)
+3. [PROJECT_STATUS.md](PROJECT_STATUS.md)
+4. [REQUIREMENTS_GAP_ANALYSIS.md](REQUIREMENTS_GAP_ANALYSIS.md)
 
 ## Team Workflow
 
