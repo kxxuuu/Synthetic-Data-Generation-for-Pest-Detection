@@ -5,7 +5,7 @@ STA 561 Final Project
 
 ## Current Verified State
 
-- This repository currently represents a **Phase 1 baseline**, not the full final assignment pipeline.
+- This repository currently represents a **Phase 1 baseline plus a Phase 2 smoke-scale video extension**, not the full final assignment pipeline.
 - Windows environment setup has been tested on this repository.
 - A Conda environment named `pest-synth` is working with:
   - Python 3.10
@@ -23,21 +23,57 @@ STA 561 Final Project
 - Video-derived frame training has also been validated locally:
   - `data/splits/video_frame_smoke_v1/split.json`
   - `outputs/detr_video_frame_smoke_v1/`
+- An upgraded video smoke dataset with negative sampling has been validated locally:
+  - `data/generated/video_clip_smoke_v2/`
+  - `data/generated/video_frame_smoke_v2/`
+  - `data/splits/video_frame_smoke_v2/split.json`
+  - `outputs/detr_video_frame_smoke_v2/`
+- A longer-duration video smoke dataset has also been validated locally:
+  - `data/generated/video_clip_smoke_v3/`
+  - `data/generated/video_frame_smoke_v3/`
+  - `data/splits/video_frame_smoke_v3/split.json`
+  - `outputs/detr_video_frame_smoke_v3/`
+  - `outputs/detr_video_frame_smoke_v3/eval_test.json`
+- A curated-model refresh has also been validated locally:
+  - `assets/models/MODEL_AUDIT.md`
+  - `data/generated/video_clip_smoke_v4/`
+  - `data/generated/video_frame_smoke_v4/`
+  - `data/splits/video_frame_smoke_v4/split.json`
+  - `outputs/detr_video_frame_smoke_v4/`
+  - `outputs/detr_video_frame_smoke_v4/eval_test.json`
+  - `scripts/diagnose_detr_predictions.py`
+  - `outputs/detr_video_frame_smoke_v4/diagnostics/summary.json`
+- A torchvision comparison baseline has also been validated locally:
+  - `scripts/train_fasterrcnn.py`
+  - `scripts/eval_fasterrcnn.py`
+  - `scripts/diagnose_fasterrcnn_predictions.py`
+  - `scripts/audit_detection_dataset.py`
+  - `outputs/fasterrcnn_video_frame_smoke_v4_stable/`
+  - `outputs/fasterrcnn_video_frame_smoke_v4_stable/eval_test.json`
+  - `outputs/fasterrcnn_video_frame_smoke_v4_stable/diagnostics/summary.json`
+  - `outputs/fasterrcnn_video_frame_smoke_v4_balanced/`
+  - `outputs/fasterrcnn_video_frame_smoke_v4_balanced/eval_test.json`
+  - `outputs/video_frame_smoke_v4_audit.json`
+- The current recommended local detector baseline is:
+  - Faster R-CNN on `video_frame_smoke_v4`
+  - with `positive_anchor` batching
+  - using `outputs/fasterrcnn_video_frame_smoke_v4_balanced/`
 
 ## Phase Scope
 
 What this repository currently does:
 
 - generates labeled synthetic pest images
-- generates short video-style frame sequences with per-frame labels
+- generates video-style frame sequences with per-frame labels, including 30-second smoke clips
 - flattens generated video frames back into the current detection training format
 - trains a DETR-based detector on those images
 - trains a DETR-based detector on flattened video-derived frames
+- trains a Faster R-CNN detector on flattened video-derived frames
 - provides a working local baseline for data generation and training
 
 What it does **not** yet fully do:
 
-- generate full 30-60 second labeled videos at assignment scale
+- generate 30-60 second labeled videos at assignment scale beyond the current smoke-scale runs
 - adapt scene layout from a single user-provided kitchen image
 - demonstrate final TPR/FPR target compliance on instructor test videos
 
@@ -54,13 +90,29 @@ Current progress is:
 - image-label dataset split working
 - DETR smoke training working on static synthetic images
 - video-generation MVP working for short clips
+- duration-based clip generation working
+- 30-second clip generation working
+- negative clips and negative frames working
 - frame flattening working for video-to-detection reuse
 - DETR smoke training working on flattened video-derived frames
+- DETR smoke training working on v2 video-derived frames with negative samples
+- held-out evaluation working on v3 video-derived frames
+- raw model audit and curated model-pool selection working
+- curated-model v4 regeneration, flattening, split, and training working
+- qualitative prediction overlays and threshold diagnostics working for v4
+- current negative-sample smoke eval suppresses frame-level false positives, but recall remains poor on both v3 and v4
+- v4 diagnostics show confidence collapse: top scores on positive and negative frames both cluster around `0.025`, so thresholds `>= 0.05` suppress every prediction
+- v4 top-k diagnostics show ranking collapse too: `top-1` on test still has `0.0` recall while negative-frame FPR stays `1.0`
+- Faster R-CNN comparison baseline works strongly on the same v4 split, which suggests the current held-out failure is more DETR-specific than data-pipeline-wide
+- Faster R-CNN diagnostics also look healthy on v4: positive-frame top scores are high, negative-frame top scores are exactly `0.0`, and `top-1` predictions already recover perfect test recall at moderate thresholds
+- v4 dataset audit shows that all splits are roughly `55%` negative frames, so with batch size `2` the expected all-negative batch rate is about `30%`, which is consistent with the skipped non-finite Faster R-CNN batches
+- A positive-anchor Faster R-CNN batching strategy has now been validated locally: it eliminates skipped train/val batches entirely while preserving `1.0` held-out recall on v4
 
 In short:
 
 - the core rendering, labeling, flattening, and training loop now works end to end
-- the biggest remaining gap is scaling the video pipeline to longer clips, more clips, and final evaluation
+- the current detector bottleneck is no longer general held-out recall on smoke-scale data
+- the biggest remaining gap is scaling the video pipeline to longer clips, more clips, and assignment-scale runs while preserving the current Faster R-CNN baseline quality
 
 ## Current Outputs
 
@@ -80,6 +132,53 @@ Key currently generated artifacts:
   - `data/splits/video_frame_smoke_v1/split.json`
 - Video-frame DETR smoke training output:
   - `outputs/detr_video_frame_smoke_v1/`
+- Video smoke clip dataset v2:
+  - `data/generated/video_clip_smoke_v2/`
+- Flattened video-frame dataset v2:
+  - `data/generated/video_frame_smoke_v2/`
+- Flattened video-frame split v2:
+  - `data/splits/video_frame_smoke_v2/split.json`
+- Video-frame DETR smoke training output v2:
+  - `outputs/detr_video_frame_smoke_v2/`
+- Video smoke clip dataset v3:
+  - `data/generated/video_clip_smoke_v3/`
+- Flattened video-frame dataset v3:
+  - `data/generated/video_frame_smoke_v3/`
+- Flattened video-frame split v3:
+  - `data/splits/video_frame_smoke_v3/split.json`
+- Video-frame DETR smoke training output v3:
+  - `outputs/detr_video_frame_smoke_v3/`
+- Video-frame DETR smoke evaluation output v3:
+  - `outputs/detr_video_frame_smoke_v3/eval_test.json`
+- Video smoke clip dataset v4:
+  - `data/generated/video_clip_smoke_v4/`
+- Flattened video-frame dataset v4:
+  - `data/generated/video_frame_smoke_v4/`
+- Flattened video-frame split v4:
+  - `data/splits/video_frame_smoke_v4/split.json`
+- Video-frame DETR smoke training output v4:
+  - `outputs/detr_video_frame_smoke_v4/`
+- Video-frame DETR smoke evaluation output v4:
+  - `outputs/detr_video_frame_smoke_v4/eval_test.json`
+- Video-frame DETR diagnostics output v4:
+  - `outputs/detr_video_frame_smoke_v4/diagnostics/summary.json`
+  - `outputs/detr_video_frame_smoke_v4/diagnostics/test/overlays/top_positive/`
+  - `outputs/detr_video_frame_smoke_v4/diagnostics/test/overlays/top_negative/`
+- Video-frame DETR top-k diagnostics output v4:
+  - `outputs/detr_video_frame_smoke_v4/diagnostics_topk/summary.json`
+- Video-frame Faster R-CNN comparison output v4:
+  - `outputs/fasterrcnn_video_frame_smoke_v4_stable/`
+  - `outputs/fasterrcnn_video_frame_smoke_v4_stable/eval_test.json`
+  - `outputs/fasterrcnn_video_frame_smoke_v4_stable/eval_test_thr020.json`
+  - `outputs/fasterrcnn_video_frame_smoke_v4_stable/diagnostics/summary.json`
+  - `outputs/fasterrcnn_video_frame_smoke_v4_stable/diagnostics/test/overlays/top_positive/`
+  - `outputs/fasterrcnn_video_frame_smoke_v4_stable/diagnostics/test/overlays/top_negative/`
+- Video-frame Faster R-CNN balanced-batching output v4:
+  - `outputs/fasterrcnn_video_frame_smoke_v4_balanced/`
+  - `outputs/fasterrcnn_video_frame_smoke_v4_balanced/eval_test.json`
+  - `outputs/fasterrcnn_video_frame_smoke_v4_balanced/eval_test_thr020.json`
+- Video-frame v4 dataset audit:
+  - `outputs/video_frame_smoke_v4_audit.json`
 
 ## Technical Flow
 
@@ -128,6 +227,7 @@ flowchart LR
 ## Documentation Map
 
 - Project status + runbook: `PROJECT_STATUS.md`
+- Documentation guide: `DOCUMENTATION_GUIDE.md`
 - Execution plan: `PROJECT_EXECUTION_PLAN.md`
 - Data sources: `data_sources/SYNTHETIC_DATA_SOURCES.md`
 - Requirement gap analysis: `REQUIREMENTS_GAP_ANALYSIS.md`
@@ -135,6 +235,7 @@ flowchart LR
 - Windows rerun notes: `WINDOWS_RUN_TROUBLESHOOTING.md`
 - Submission notes: `submissions/README.md`
 - Model manifest: `assets/models/MODEL_MANIFEST.md`
+- Model audit: `assets/models/MODEL_AUDIT.md`
 
 ## Start Here
 
@@ -357,8 +458,8 @@ bash scripts/run_generate_synthetic.sh \
   assets/models/rat/rat_primary.glb \
   assets/models/mouse/mouse_primary.glb \
   assets/models/cockroach/cockroach_primary.glb \
-  data/generated/synth_v1 \
-  200
+  data/generated/image_smoke_v1 \
+  60
 ```
 
 Windows PowerShell example:
@@ -370,9 +471,9 @@ $blender = Join-Path $env:ProgramFiles "Blender Foundation\Blender 5.1\blender.e
 
 Outputs:
 
-- Images: `data/generated/synth_v1/images/*.png`
-- Normalized bbox labels (`class x_center y_center width height`): `data/generated/synth_v1/labels/*.txt`
-- Metadata: `data/generated/synth_v1/metadata.csv`
+- Images: `data/generated/image_smoke_v1/images/*.png`
+- Normalized bbox labels (`class x_center y_center width height`): `data/generated/image_smoke_v1/labels/*.txt`
+- Metadata: `data/generated/image_smoke_v1/metadata.csv`
 
 ## DCC Run Policy (Login Node vs Compute Node)
 
@@ -388,8 +489,8 @@ Split only:
 
 ```bash
 bash run.sh split \
-  --data-dir /work/$USER/pest_synth/data/generated/synth_v1 \
-  --out-dir /work/$USER/pest_synth/data/splits/synth_v1 \
+  --data-dir /work/$USER/pest_synth/data/generated/image_smoke_v1 \
+  --out-dir /work/$USER/pest_synth/data/splits/image_smoke_v1 \
   --train-ratio 0.7 --val-ratio 0.15 --test-ratio 0.15 \
   --seed 42
 ```

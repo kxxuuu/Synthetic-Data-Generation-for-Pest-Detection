@@ -13,6 +13,40 @@ Based on `final_project_2026-1.pdf`:
   - False positive rate < 5%
   - End-to-end pipeline including training a ViT-based detector.
 
+## 1.1 Current Checkpoint (April 19, 2026)
+
+What is already working:
+
+- static synthetic image generation with automatic bbox labels
+- video-style clip generation with per-frame labels
+- clip sharding controls (`start_clip`, duration-derived frame counts)
+- negative clips and negative frames
+- flattening video frames back into the detector training format
+- DETR smoke training on image data and video-derived frame data
+- held-out video-frame evaluation
+
+What the latest smoke-scale video runs proved:
+
+- `video_clip_smoke_v4` generated 9 curated-model clips at 30 seconds each
+- all three pest classes were covered, with curated model pools and 2 fully negative clips
+- negative samples were included and still suppressed false positives on the held-out negative frames
+- training quality improved substantially (`best val loss = 1.075053` on `detr_video_frame_smoke_v4`)
+- threshold diagnostics now show that positive and negative frames both receive top scores around `0.025`
+- below `0.01`, recall partially recovers but precision collapses and every negative frame receives predictions
+- top-k diagnostics now show that even `top-1` predictions on test have `0.0` recall while negative-frame FPR remains `1.0`
+- a torchvision Faster R-CNN comparison baseline reaches perfect held-out recall on the same v4 split, so the current bottleneck has narrowed mostly to model choice and DETR-specific behavior rather than the old obviously broken raw assets
+- Faster R-CNN diagnostics now show strong score separation on the same v4 split: positive top scores stay high while negative-frame top scores are `0.0`
+- the v4 audit also shows all splits are roughly `55%` negative frames, so batch size `2` naturally creates about `30%` all-negative mini-batches, which likely explains most skipped non-finite Faster R-CNN batches
+- a `positive_anchor` batching strategy now removes skipped train/val batches entirely while preserving `1.0` recall and `0.0` frame FPR at threshold `0.5`
+
+What remains highest priority:
+
+- lock Faster R-CNN with `positive_anchor` batching as the working detector baseline unless DETR remains a hard requirement
+- scale from smoke-scale 30-second clips to assignment-scale 30-60 second batches
+- keep all-negative mini-batch handling explicit during detector training and cluster runs
+- add scene adaptation from a single kitchen photo
+- move from local smoke runs to cluster-ready generation and training jobs
+
 ## 2. Preconditions Checklist
 
 ## 2.1 Data and Assets
@@ -36,7 +70,7 @@ Based on `final_project_2026-1.pdf`:
 
 ## 3. 4-Week Execution Plan
 
-Current date: **March 11, 2026**.
+Original planning date: **March 11, 2026**.
 
 ## Week 1 (March 11 - March 17, 2026): MVP Static Synthetic Images
 
@@ -247,7 +281,7 @@ python -m src.training.evaluate_detector --checkpoint outputs/checkpoints/best.p
 
 ## 9. Immediate Next Steps (Next 48 Hours)
 
-1. Freeze label format and metrics definition (TPR/FPR formulas and thresholds).
-2. Build the first Blender script that renders static images with bbox export.
-3. Generate first 100 samples and run label sanity check notebook.
-4. Train a baseline detector and produce first error table by class.
+1. Inspect v3 prediction overlays and failure cases to diagnose the current zero-recall behavior.
+2. Generate `video_clip_smoke_v4` with more clips, more backgrounds, and stronger motion diversity.
+3. Run threshold sweeps and per-class evaluation summaries on the video-frame model.
+4. Add optional MP4 assembly and shard-friendly cluster configs after recall starts improving.
