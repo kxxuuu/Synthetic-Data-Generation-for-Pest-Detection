@@ -13,6 +13,7 @@
 \usepackage{hyperref}
 \usepackage{xcolor}
 \usepackage{enumitem}
+\usepackage{verbatim}
 
 \hypersetup{
     colorlinks=true,
@@ -246,6 +247,24 @@ The current smoke-scale configuration uses 30-second clips at 4 FPS. The generat
     \item visibility filtering so that tiny or nearly invisible positives are not mislabeled.
 \end{itemize}
 
+The concrete scene specification used by the current video generator is fixed enough that another reader could reimplement it directly. Each clip is rendered at resolution $1280 \times 720$ with Blender Cycles. The camera is placed at $(0.0, -3.8, 1.3)$ with Euler rotation $(75^\circ, 0^\circ, 0^\circ)$, the key area light is placed at $(1.5, -2.0, 3.0)$ with energy 1200, and a large emissive background plane is attached to the camera so that a sampled kitchen image fills the view. Pest models are imported from \texttt{.glb}, \texttt{.gltf}, \texttt{.fbx}, or \texttt{.obj}, recentered so that their combined mesh bounding box is centered at the origin and grounded to the floor plane, then pose-adjusted by class. In particular, the rat asset is rotated by $(0^\circ, 90^\circ, 0^\circ)$ so that it lies on the floor correctly under the current scene convention.
+
+The generator samples class-dependent scale and motion parameters. Let $s$ denote the target normalized model size before box-based correction and let $a$ denote the desired normalized bbox area. Then:
+\begin{itemize}[leftmargin=1.5em]
+    \item rat: $s \sim \mathrm{Unif}(0.12, 0.22)$, $a \sim \mathrm{Unif}(0.0060, 0.0200)$, speed $\sim \mathrm{Unif}(0.006, 0.012)$,
+    \item mouse: $s \sim \mathrm{Unif}(0.10, 0.18)$, $a \sim \mathrm{Unif}(0.0040, 0.0150)$, speed $\sim \mathrm{Unif}(0.009, 0.016)$,
+    \item cockroach: $s \sim \mathrm{Unif}(0.08, 0.14)$, $a \sim \mathrm{Unif}(0.0030, 0.0120)$, speed $\sim \mathrm{Unif}(0.012, 0.020)$.
+\end{itemize}
+An initial state is sampled by drawing a location $(x,y)$ uniformly from $[-0.9,0.9] \times [-0.4,0.8]$, drawing a heading uniformly from $[0,2\pi)$, checking visibility in camera coordinates, and then rescaling the model so that the projected box area lands inside the class-specific target interval. If no valid state is found after 50 attempts, the clip generation fails rather than silently producing a bad example.
+
+Motion is first-order and class-aware. At each frame, the heading receives a perturbation from $\mathrm{Unif}(-0.12,0.12)$ radians. With probability \texttt{pause\_prob}, the current speed is multiplied by a factor from $\mathrm{Unif}(0.15, 0.55)$; otherwise it is multiplied by a factor from $\mathrm{Unif}(0.96, 1.04)$. The updated speed is clipped back to the class-specific speed range. Position is then advanced by $(\cos \theta \cdot v, \sin \theta \cdot v)$ and reflected off the rectangular motion bounds $x \in [-0.95,0.95]$, $y \in [-0.45,0.85]$ by a bounce rule that flips heading about the corresponding axis.
+
+Negative examples are injected in two ways. First, each clip is made fully negative with probability \texttt{negative\_clip\_prob}. Second, conditional on being a positive clip, exactly
+\[
+\operatorname{round}(T \cdot p_{\mathrm{negframe}})
+\]
+frame indices are sampled uniformly without replacement and rendered as negative frames with the pest hidden. A projected bounding box is accepted only if at least $\max(6, 0.08V)$ mesh vertices are visible in the camera view, where $V$ is the total number of mesh vertices considered, and only if the final normalized box area is at least \texttt{min\_bbox\_area}. Otherwise that frame is converted to a negative frame and counted as visibility-filtered.
+
 \subsection{Label Format}
 Bounding boxes are exported in normalized center-width-height form. For a pixel-space box
 \[
@@ -332,6 +351,16 @@ The DETR runs in this repository were primarily smoke and diagnostic experiments
     \item zero worker subprocesses on Windows for stability.
 \end{itemize}
 
+More explicitly, the detector is the torchvision implementation of Faster R-CNN with a MobileNetV3-Large-320-FPN backbone initialized from default pretrained torchvision detection weights, followed by replacement of the ROI classification head so that the final predictor has four output classes: background plus the three pest classes. The class-to-index mapping is
+\[
+0 \mapsto \text{rat}, \qquad 1 \mapsto \text{mouse}, \qquad 2 \mapsto \text{cockroach},
+\]
+and torchvision internally shifts these to labels $\{1,2,3\}$ because label 0 is reserved for background.
+
+Each training image is loaded as RGB, converted to a tensor, and paired with a target dictionary containing \texttt{boxes}, \texttt{labels}, \texttt{image\_id}, \texttt{area}, and \texttt{iscrowd}. Labels stored on disk in normalized center-width-height format are converted back to pixel-space \texttt{xyxy} boxes before training. Optimization uses AdamW with learning rate $5 \times 10^{-5}$ and weight decay $10^{-4}$. The code trains for 3 epochs, computes the mean finite training loss per epoch, computes validation loss by running the detector in loss-producing mode on the validation loader, writes a \texttt{last} checkpoint every epoch, and writes a \texttt{best} checkpoint whenever validation loss improves. The final reported v5 baseline is selected from that \texttt{best} checkpoint.
+
+The \texttt{positive\_anchor} batching strategy is part of the reproducible method rather than an incidental implementation trick. Let $P$ be the set of indices with at least one ground-truth box and $N$ the set of empty-frame indices. For batch size 2, the sampler forms each batch by first choosing one anchor from $P$ and then filling the remaining slot from a shuffled pool consisting of all negatives plus extra positives. This guarantees at least one positive image per batch whenever positive images exist, which is why the v5 run avoids the non-finite all-negative batch behavior seen under naive batching on a roughly 54\% negative-frame dataset.
+
 \subsection{Evaluation Protocol}
 The current evaluation pipeline is thresholded rather than mAP-based. A predicted labeled box $(\hat{c}, \hat{b})$ is counted as a true positive when:
 \begin{enumerate}[leftmargin=1.5em]
@@ -393,7 +422,7 @@ The most important current empirical finding is that detector choice matters sub
         DETR & v4 @ 0.20 & 0.0000 & 0.0000 & 0.0000 & 0.0000 \\
         DETR diagnostic & v4 @ 0.01 & 0.0021 & 0.4658 & 0.4658 & 1.0000 \\
         Faster R-CNN & v4 balanced @ 0.50 & 0.9865 & 1.0000 & 1.0000 & 0.0000 \\
-        Faster R-CNN & v5 balanced @ 0.50 & 1.0000 & 1.0000 & 1.0000 & 0.0000 \\
+        Faster R-CNN & v5 balanced @ 0.50 & 0.9390 & 1.0000 & 1.0000 & 0.0000 \\
         Faster R-CNN & v5 balanced @ 0.20 & 1.0000 & 1.0000 & 1.0000 & 0.0000 \\
         \bottomrule
     \end{tabular}
@@ -479,6 +508,149 @@ To reproduce the current local results, a reader needs:
 \end{enumerate}
 
 The raw binary assets and generated datasets are intentionally treated as local artifacts rather than normal git-tracked files, so a complete reproducibility package should include either direct dataset links or a separately shared asset pack and dataset pack.
+
+\subsection{Exact Data Contract}
+The current reproducible pipeline assumes the following on-disk contracts.
+
+Kitchen backgrounds live under a directory such as \texttt{data/raw/kitchen\_backgrounds/} and may be nested arbitrarily; all \texttt{.jpg}, \texttt{.jpeg}, and \texttt{.png} files are considered eligible backgrounds. Pest assets are grouped by class under model directories and may be in \texttt{.glb}, \texttt{.gltf}, \texttt{.fbx}, or \texttt{.obj} format. The raw video generator writes one directory per clip:
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{clips/<clip\_id>/frames/frame\_<k>.png},
+    \item \texttt{clips/<clip\_id>/labels/frame\_<k>.txt},
+    \item \texttt{clips/<clip\_id>/clip\_metadata.json}.
+\end{itemize}
+Each label file is either empty, meaning no pest is present in that frame, or contains one line of the form
+\[
+\texttt{class\_id xc yc w h}
+\]
+with all four box coordinates normalized to $[0,1]$. The class IDs are 0 for rat, 1 for mouse, and 2 for cockroach.
+
+Flattening rewrites this clip-structured data into an image-detection layout:
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{images/<clip\_id>\_frame\_<k>.png},
+    \item \texttt{labels/<clip\_id>\_frame\_<k>.txt},
+    \item \texttt{manifest.csv}.
+\end{itemize}
+The split script then writes \texttt{split.json} containing absolute \texttt{data\_dir}, integer \texttt{seed}, and three stem lists named \texttt{train}, \texttt{val}, and \texttt{test}. Stratification is performed by the first label ID in each label file, with empty files treated as class $-1$. In other words, negatives are stratified separately from rat, mouse, and cockroach frames.
+
+\subsection{Step-by-Step Reproduction Recipe}
+The current main local benchmark can be reproduced in five deterministic stages.
+
+\paragraph{Stage 1: Generate synthetic clips.}
+Run Blender in background mode with the video generator, supplying kitchen backgrounds, curated pest model directories, and the smoke-scale hyperparameters. The exact v5-style configuration is:
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{num\_clips = 12},
+    \item \texttt{duration\_seconds = 30},
+    \item \texttt{fps = 4}, so $T = 120$ frames per clip,
+    \item \texttt{samples = 32},
+    \item \texttt{width = 1280}, \texttt{height = 720},
+    \item \texttt{min\_bbox\_area = 0.01},
+    \item \texttt{negative\_clip\_prob = 0.15},
+    \item \texttt{negative\_frame\_prob = 0.10},
+    \item \texttt{pause\_prob = 0.10},
+    \item \texttt{seed = 42},
+    \item per-clip RNG seed \texttt{clip\_seed = seed + clip\_number}.
+\end{itemize}
+If a strict class balance is desired, the reader should additionally pass a repeated \texttt{clip\_class\_sequence} such as rat, mouse, cockroach, rat, mouse, cockroach, and so on; otherwise class identity is sampled uniformly from the available model pools on each non-negative clip.
+
+\paragraph{Stage 2: Flatten clip frames into a detection dataset.}
+Copy or symlink every rendered frame-label pair into \texttt{images/} and \texttt{labels/} using a flattened stem of the form \texttt{clip\_000123\_frame\_000045}. The repository default is \texttt{copy} mode.
+
+\paragraph{Stage 3: Build the split.}
+Apply the split script with train, validation, and test ratios 0.7, 0.15, and 0.15 and seed 42. Because splitting is stratified by first label ID, the negative-frame rate is preserved approximately across splits. For the current reported v5 benchmark, this produced 1008 train frames, 216 validation frames, and 216 test frames from 1440 total rendered frames.
+
+\paragraph{Stage 4: Train Faster R-CNN.}
+Train the torchvision Faster R-CNN baseline with
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{arch = fasterrcnn\_mobilenet\_v3\_large\_320\_fpn},
+    \item \texttt{weights = default},
+    \item \texttt{epochs = 3},
+    \item \texttt{batch\_size = 2},
+    \item \texttt{lr = 5e-5},
+    \item \texttt{weight\_decay = 1e-4},
+    \item \texttt{grad\_clip\_norm = 5.0},
+    \item \texttt{batching\_strategy = positive\_anchor},
+    \item \texttt{num\_workers = 0},
+    \item \texttt{seed = 42}.
+\end{itemize}
+The run should emit \texttt{model.pt} and \texttt{metadata.json} under both \texttt{last/} and \texttt{best/}, plus a top-level \texttt{train.log} and \texttt{summary.json}. The reported appendix numbers correspond to evaluating \texttt{best/model.pt}, not the last epoch unconditionally.
+
+\paragraph{Stage 5: Evaluate the held-out test split.}
+Evaluate \texttt{best/model.pt} at confidence thresholds 0.5 and 0.2 with IoU threshold 0.5. The evaluation loop sorts predictions by score, greedily matches them to unused same-class ground-truth boxes, and then reports TP, FP, FN, recall, precision, negative-frame count, false-positive count on negative frames, and frame-level FPR. For the current reported local smoke-scale v5 benchmark, the held-out test split result is recall 1.0, precision 1.0, and frame-level FPR 0.0 at both thresholds 0.5 and 0.2.
+
+\subsection{Reference Command Sequence}
+One concise way to express the full pipeline is the following command template, where the reader replaces paths with local asset locations:
+
+\begin{verbatim}
+blender --background --python scripts/generate_synthetic_video_blender.py -- \
+  --background-dir data/raw/kitchen_backgrounds \
+  --rat-model assets/models/rat/rat_primary.glb \
+  --mouse-model assets/models/mouse/mouse_primary.glb \
+  --cockroach-model assets/models/cockroach/cockroach_primary.glb \
+  --rat-model-dir assets/models/rat \
+  --mouse-model-dir assets/models/mouse \
+  --cockroach-model-dir assets/models/cockroach \
+  --out-dir data/generated/video_clip_smoke_v5 \
+  --num-clips 12 \
+  --duration-seconds 30 \
+  --fps 4 \
+  --samples 32 \
+  --min-bbox-area 0.01 \
+  --negative-clip-prob 0.15 \
+  --negative-frame-prob 0.10 \
+  --pause-prob 0.10 \
+  --width 1280 --height 720 \
+  --seed 42
+
+python scripts/flatten_video_frames_for_detection.py \
+  --video-dir data/generated/video_clip_smoke_v5 \
+  --out-dir data/generated/video_frame_smoke_v5 \
+  --mode copy
+
+python scripts/split_detection_dataset.py \
+  --data-dir data/generated/video_frame_smoke_v5 \
+  --out-dir data/splits/video_frame_smoke_v5 \
+  --train-ratio 0.7 --val-ratio 0.15 --test-ratio 0.15 \
+  --seed 42
+
+python scripts/train_fasterrcnn.py \
+  --data-dir data/generated/video_frame_smoke_v5 \
+  --split-json data/splits/video_frame_smoke_v5/split.json \
+  --output-dir outputs/fasterrcnn_video_frame_smoke_v5_balanced \
+  --arch fasterrcnn_mobilenet_v3_large_320_fpn \
+  --weights default \
+  --epochs 3 \
+  --batch-size 2 \
+  --lr 5e-5 \
+  --weight-decay 1e-4 \
+  --grad-clip-norm 5.0 \
+  --batching-strategy positive_anchor \
+  --num-workers 0 \
+  --seed 42
+
+python scripts/eval_fasterrcnn.py \
+  --data-dir data/generated/video_frame_smoke_v5 \
+  --split-json data/splits/video_frame_smoke_v5/split.json \
+  --checkpoint-dir outputs/fasterrcnn_video_frame_smoke_v5_balanced/best \
+  --output-json outputs/fasterrcnn_video_frame_smoke_v5_balanced/eval_test.json \
+  --confidence-threshold 0.5 \
+  --iou-threshold 0.5
+
+python scripts/eval_fasterrcnn.py \
+  --data-dir data/generated/video_frame_smoke_v5 \
+  --split-json data/splits/video_frame_smoke_v5/split.json \
+  --checkpoint-dir outputs/fasterrcnn_video_frame_smoke_v5_balanced/best \
+  --output-json outputs/fasterrcnn_video_frame_smoke_v5_balanced/eval_test_thr020.json \
+  --confidence-threshold 0.2 \
+  --iou-threshold 0.5
+\end{verbatim}
+
+\subsection{What Would Still Need To Be Shared}
+The technical description above is sufficient for a reader to recreate the pipeline logic and rerun the benchmark, but a strict third-party reproduction still requires the raw external assets that are not committed into git: the kitchen background image pool, the curated pest model binaries, and any class-specific exclude lists used during the final v5 data generation run. In a release-quality reproducibility package, those should be distributed as permanent dataset links or as a separate asset archive with checksums.
+
+\subsection{Repository README}
+For completeness, we attach the repository README directly after the technical reproducibility notes so that a reader can see the broader implementation scope, artifact inventory, and workflow documentation in one place.
+
+\verbatiminput{../README.md}
 
 \subsection{Demo Assets}
 The current qualitative demo assets are 30-second MP4 clips generated from the smoke-scale pipeline. These are suitable for demonstration and report support even though the repository does not currently include a Jupyter notebook demo.
