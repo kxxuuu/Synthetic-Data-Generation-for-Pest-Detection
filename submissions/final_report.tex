@@ -41,7 +41,15 @@ Synthetic data offers a practical alternative. If realistic synthetic scenes can
 The goal of this project is to build an end-to-end pipeline that starts from kitchen imagery, generates labeled synthetic pest scenes, and trains a vision-transformer-based detector to localize and classify pests. Our longer-term assignment target is video-based generation with frame-level labels, but the current repository already supports an image-level synthetic training workflow that serves as the core minimum viable system. The central research question is whether synthetic data can effectively train a pest detector and what aspects of synthetic variation matter most for generalization.
 
 \section{Problem Statement}
-We study the following supervised detection problem. Given an input image or video frame from a kitchen environment, the model must identify whether a pest is present, classify its type, and predict a bounding box around it. The three target classes in this project are:
+We study the following supervised detection problem. Let
+\[
+x \in \mathbb{R}^{H \times W \times 3}
+\]
+denote an input kitchen image, or more generally let
+\[
+x_t \in \mathbb{R}^{H \times W \times 3}, \qquad t=1,\dots,T,
+\]
+denote the frames of a kitchen video. For each image or frame, the model must identify whether a pest is present, classify its type, and predict a bounding box around it. The three target classes in this project are:
 
 \begin{itemize}[leftmargin=1.5em]
     \item rat,
@@ -49,10 +57,62 @@ We study the following supervised detection problem. Given an input image or vid
     \item cockroach.
 \end{itemize}
 
-The practical project requirement is more specific: the final system should take a kitchen image as input, automatically generate synthetic pest videos of length 30--60 seconds with frame-level labels, and use those generated data to train a vision-transformer detector. In addition to localization and classification, the final detector should generalize to held-out test videos while maintaining a high true detection rate and a low false positive rate.
+Accordingly, the label space is
+\[
+\mathcal{C}=\{\text{rat},\text{mouse},\text{cockroach}\}.
+\]
+For a single image $x$, the ground-truth annotation is a finite set
+\[
+y=\{(c_i,b_i)\}_{i=1}^{N_x},
+\]
+where $N_x$ is the number of pests visible in the image, $c_i \in \mathcal{C}$ is the class label, and
+\[
+b_i=(x_{c,i},y_{c,i},w_i,h_i)\in[0,1]^4
+\]
+is the normalized bounding box for the $i$th pest. Thus, the learning problem is set-valued: the detector must predict an unordered collection of object instances rather than a single class label.
 
-Our current implementation addresses the core training problem first by building an image-level synthetic data pipeline with automatic bounding-box annotation. This is a deliberate systems choice: before scaling to videos, we need a reproducible foundation for asset placement, scene randomization, label correctness, and model training.
+We denote the detector by
+\[
+f_\theta : \mathbb{R}^{H \times W \times 3} \to \widehat{\mathcal{Y}},
+\]
+where $\theta$ are model parameters and $\widehat{\mathcal{Y}}$ is the space of predicted labeled boxes. Given a training dataset
+\[
+\mathcal{D}=\{(x^{(m)},y^{(m)})\}_{m=1}^n,
+\]
+the standard supervised objective is to learn
+\[
+\hat{\theta}
+=
+\arg\min_{\theta}
+\frac{1}{n}\sum_{m=1}^{n}
+\mathcal{L}\bigl(f_\theta(x^{(m)}),y^{(m)}\bigr),
+\]
+where $\mathcal{L}$ is a detection loss combining classification and localization error. In our case, this detector is implemented using a vision-transformer-based architecture, specifically DETR.
 
+The practical project requirement is more specific: the final system should take a kitchen image as input, automatically generate synthetic pest videos of length $30$--$60$ seconds with frame-level labels, and use those generated data to train a vision-transformer detector. If a generated video contains $T$ frames, then its annotation may be written as
+\[
+\mathcal{Y}_{1:T} = (y_1,\dots,y_T),
+\]
+where each
+\[
+y_t=\{(c_{t,i},b_{t,i})\}_{i=1}^{N_t}
+\]
+records the pest instances visible in frame $t$. The ideal final detector should generalize to held-out test videos while maintaining a high true detection rate and a low false positive rate.
+
+From a distributional perspective, let $P_{\mathrm{real}}$ denote the target distribution of real kitchen frames and let $P_{\mathrm{syn}}$ denote the synthetic distribution induced by the generator. The broader research question is whether a detector trained on samples from $P_{\mathrm{syn}}$ can achieve strong performance on test data drawn from $P_{\mathrm{real}}$. In other words, we seek to understand whether synthetic data can serve as an effective surrogate for scarce real labeled pest footage despite the potential domain gap
+\[
+P_{\mathrm{syn}} \neq P_{\mathrm{real}}.
+\]
+
+Our current implementation addresses the core training problem first by building an image-level synthetic data pipeline with automatic bounding-box annotation. Formally, this means we first construct
+\[
+\mathcal{D}_{\mathrm{syn}}^{\mathrm{img}}=\{(x^{(m)},y^{(m)})\}_{m=1}^n
+\]
+for static images before extending to video-level data
+\[
+\mathcal{D}_{\mathrm{syn}}^{\mathrm{vid}}=\{(X^{(m)},\mathcal{Y}^{(m)}_{1:T_m})\}_{m=1}^N.
+\]
+This is a deliberate systems choice: before scaling to videos, we need a reproducible foundation for asset placement, scene randomization, label correctness, and model training. Establishing the image-level pipeline first therefore provides a controlled setting in which to validate the synthetic generation process, the exported annotations, and the end-to-end detector training procedure.
 \section{Related Work}
 This project lies at the intersection of three areas: object detection, synthetic data generation, and agricultural or pest-related visual recognition.
 
@@ -93,7 +153,35 @@ The current pipeline organizes three-dimensional pest assets under class-specifi
 The use of 3D assets is important because it allows future extension to video generation, viewpoint variation, animation, and more realistic scene interaction. Even in the image-level stage, explicit asset-based generation provides tighter control than generic image editing.
 
 \subsection{Synthetic Scene Generation}
-Synthetic training examples are produced with Blender-based automation. For each generated sample, the pipeline selects a kitchen background, places a pest instance, applies randomized scene parameters, and exports both the rendered image and the corresponding bounding-box label. Output files include:
+Synthetic training examples are produced with Blender-based automation. We model the generator as a stochastic scene-construction process. For each sample, a kitchen background
+\[
+B \sim P_B,
+\]
+a pest asset
+\[
+A \sim P_A,
+\]
+and a collection of nuisance parameters
+\[
+\phi \sim P_{\Phi}
+\]
+are sampled, where $\phi$ may include object position, scale, in-plane rotation, lighting, occlusion, and other rendering variables. The synthetic image is then generated by a rendering/compositing map
+\[
+x = G(B,A,\phi),
+\]
+where $x \in \mathbb{R}^{H \times W \times 3}$ denotes the final RGB image. The corresponding annotation is produced automatically from the scene geometry,
+\[
+y = T(A,\phi),
+\]
+where $T$ extracts the pest class and its visible bounding box from the rendered scene.
+
+Equivalently, the synthetic dataset may be viewed as a collection
+\[
+\mathcal{D}_{\mathrm{syn}}=\{(x_i,y_i)\}_{i=1}^n,
+\]
+with each pair generated independently from the sampling-and-rendering pipeline above. This formulation makes clear that scene diversity is controlled by the distributions $P_B$, $P_A$, and $P_{\Phi}$: increasing the support of these distributions increases variation in backgrounds, pest appearance, and nuisance factors, which is important for reducing overfitting to narrow synthetic scene statistics.
+
+In practice, for each generated sample the pipeline selects a kitchen background, places a pest instance, applies randomized scene parameters, and exports both the rendered image and the corresponding bounding-box label. Output files include:
 
 \begin{itemize}[leftmargin=1.5em]
     \item a rendered image,
@@ -101,16 +189,117 @@ Synthetic training examples are produced with Blender-based automation. For each
     \item metadata describing the generated sample.
 \end{itemize}
 
-The current generator focuses on image-level examples rather than full video clips. However, the generator was designed to make later extension to temporal data straightforward. The same principles that govern static scene randomization can be extended to frame-by-frame motion paths and time-varying visibility.
+The current generator focuses on image-level examples rather than full video clips. However, the same stochastic formulation extends naturally to temporal data. For a video sequence of length $T$, one may write
+\[
+x_t = G(B_t,A_t,\phi_t), \qquad t=1,\dots,T,
+\]
+where the parameters are allowed to evolve over time according to motion paths, camera variation, or time-varying visibility. Thus, the current image-level generator serves as the static special case of a more general framewise synthetic video model.
 
 \subsection{Label Format}
-Bounding boxes are exported automatically in normalized coordinates. This avoids manual annotation and guarantees label consistency with the generated scene geometry. One of the main advantages of synthetic data in this context is that annotation correctness can be enforced by construction rather than relying on external labeling workflows.
+Bounding boxes are exported automatically in normalized coordinates. For a rendered pest instance with pixel-space bounding box
+\[
+(x_{\min},y_{\min},x_{\max},y_{\max}),
+\]
+we define the center-width-height representation
+\[
+x_c=\frac{x_{\min}+x_{\max}}{2}, \qquad
+y_c=\frac{y_{\min}+y_{\max}}{2}, \qquad
+w=x_{\max}-x_{\min}, \qquad
+h=y_{\max}-y_{\min}.
+\]
+If the rendered image has width $W$ and height $H$, then the normalized box is
+\[
+\tilde{b}
+=
+\left(
+\frac{x_c}{W},
+\frac{y_c}{H},
+\frac{w}{W},
+\frac{h}{H}
+\right)
+\in [0,1]^4.
+\]
+Accordingly, each training annotation can be represented as
+\[
+y=(c,\tilde{b}),
+\]
+where $c \in \{\text{rat},\text{mouse},\text{cockroach}\}$ is the class label and $\tilde{b}$ is the normalized bounding box.
 
+Because the scene is generated synthetically, the label is obtained directly from the underlying scene geometry rather than from manual human annotation. In other words, if $\Pi(\cdot)$ denotes projection from scene coordinates to image coordinates, then the exported box is determined by the rendered object support:
+\[
+\tilde{b} = \operatorname{BBox}\bigl(\Pi(A,\phi)\bigr),
+\]
+followed by normalization by $(W,H)$. This guarantees consistency between the image and the annotation by construction. One of the main advantages of synthetic data in this context is therefore that annotation correctness can be enforced algorithmically, avoiding the cost and variability of external labeling workflows.
 \subsection{Detector}
-We use DETR as the baseline detector. DETR is a transformer-based architecture that jointly predicts object classes and boxes through direct set prediction \cite{carion2020detr}. This makes it well aligned with the project requirement to train a vision-transformer-style detector for pest localization and classification.
+We use DETR as the baseline detector \cite{carion2020detr}. DETR formulates object detection as a direct set-prediction problem, which removes the need for hand-designed proposal generation or non-maximum suppression and makes it well aligned with the project requirement to use a vision-transformer-style detector for pest localization and classification.
 
-The detector is trained on the synthetic dataset after splitting it into training, validation, and test subsets. The repository includes scripts for both training and evaluation, enabling end-to-end experiments once a generated dataset is available.
+Let an input image be denoted by
+\[
+x \in \mathbb{R}^{H \times W \times 3}.
+\]
+After passing $x$ through a convolutional backbone, DETR produces a spatial feature map
+\[
+F \in \mathbb{R}^{d \times h \times w},
+\]
+which is flattened into a sequence of visual tokens and processed by a transformer encoder. A transformer decoder then takes a fixed set of learned object queries
+\[
+\{q_1,\dots,q_Q\}, \qquad q_i \in \mathbb{R}^d,
+\]
+and outputs $Q$ prediction slots. Each slot predicts a class probability vector and a bounding box:
+\[
+\hat{y}_i = (\hat{p}_i,\hat{b}_i), \qquad i=1,\dots,Q,
+\]
+where $\hat{p}_i \in \Delta^{K+1}$ is a probability distribution over $K$ pest classes plus one special ``no-object'' class, and
+\[
+\hat{b}_i = (\hat{c}_{x,i},\hat{c}_{y,i},\hat{w}_i,\hat{h}_i) \in [0,1]^4
+\]
+is a normalized bounding box. In our project, the foreground classes are
+\[
+K=3, \qquad \{\text{rat},\text{mouse},\text{cockroach}\}.
+\]
 
+For an image with $N$ ground-truth objects, the target annotation is a set
+\[
+y = \{(c_j,b_j)\}_{j=1}^N,
+\]
+where $c_j \in \{1,\dots,K\}$ is the pest class and
+\[
+b_j = (c_{x,j},c_{y,j},w_j,h_j) \in [0,1]^4
+\]
+is the normalized ground-truth box. Since DETR always outputs a fixed number $Q$ of predictions with $Q \ge N$, training requires matching the unordered predictions to the unordered ground-truth objects. This is done by bipartite matching via the Hungarian algorithm:
+\[
+\sigma^\star = \arg\min_{\sigma \in \mathfrak{S}_Q}
+\sum_{j=1}^{N}
+\mathcal{C}\bigl((c_j,b_j),(\hat{p}_{\sigma(j)},\hat{b}_{\sigma(j)})\bigr),
+\]
+where $\mathfrak{S}_Q$ denotes the set of permutations of $\{1,\dots,Q\}$ and $\mathcal{C}$ is a matching cost combining classification and localization terms.
+
+After matching, the training loss is applied only to the assigned prediction slots. A standard DETR objective is
+\[
+\mathcal{L}
+=
+\sum_{j=1}^{N}
+\left[
+-\log \hat{p}_{\sigma^\star(j)}(c_j)
++ \lambda_{1}\|b_j-\hat{b}_{\sigma^\star(j)}\|_1
++ \lambda_{\mathrm{giou}}\mathcal{L}_{\mathrm{GIoU}}(b_j,\hat{b}_{\sigma^\star(j)})
+\right]
++
+\sum_{i \notin \{\sigma^\star(1),\dots,\sigma^\star(N)\}}
+-\log \hat{p}_i(\varnothing),
+\]
+where $\varnothing$ denotes the no-object class, $\|\cdot\|_1$ is the coordinate-wise $\ell_1$ loss, and $\mathcal{L}_{\mathrm{GIoU}}$ is the generalized IoU loss. The first summation encourages correct pest classification and accurate box localization for matched objects, while the second penalizes unmatched queries unless they predict no object.
+
+This formulation is particularly attractive for our setting because each synthetic image contains a small number of pests and comes with automatically generated bounding boxes. Thus, DETR can be trained end-to-end on the synthetic dataset without additional post-processing heuristics. After dataset generation, we split the data into training, validation, and test subsets and optimize the detector parameters by minimizing
+\[
+\hat{\theta}
+=
+\arg\min_{\theta}
+\frac{1}{n}
+\sum_{m=1}^{n}
+\mathcal{L}\bigl(f_{\theta}(x^{(m)}), y^{(m)}\bigr),
+\]
+where $f_{\theta}$ denotes the DETR model and $\{(x^{(m)},y^{(m)})\}_{m=1}^n$ are the synthetic training examples. The repository includes scripts for both training and evaluation, enabling end-to-end experiments once a generated dataset is available.
 \section{Experimental Setup}
 \subsection{Dataset Construction}
 At the time of writing, the repository contains a smoke-test synthetic dataset with 200 labeled images balanced across the three classes. A corresponding split file partitions the data into:
@@ -134,7 +323,72 @@ The default training configuration uses:
 These settings are intended for a baseline run rather than a fully optimized training schedule. As the dataset grows, training hyperparameters and augmentation policies will need to be revisited.
 
 \subsection{Evaluation Metrics}
-The final assignment emphasizes true detection rate and false positive rate. In addition, standard object detection metrics such as precision, recall, and mean average precision at a fixed IoU threshold are useful for diagnosing model behavior. The current evaluation script supports thresholded detection analysis with configurable confidence and IoU settings.
+The final assignment emphasizes true detection rate and false positive rate. To define these quantities precisely, let a predicted bounding box $\hat{b}$ with class label $\hat{c}$ be counted as a true positive if (i) the predicted class matches a ground-truth class $c$, (ii) the prediction confidence exceeds a chosen threshold $\tau_{\mathrm{conf}}$, and (iii) the overlap between prediction and ground truth exceeds a chosen IoU threshold $\tau_{\mathrm{IoU}}$. The intersection-over-union between a predicted box $\hat{b}$ and a ground-truth box $b$ is
+\[
+\operatorname{IoU}(\hat{b},b)
+=
+\frac{|\hat{b}\cap b|}{|\hat{b}\cup b|}.
+\]
+A detection is therefore considered correct when
+\[
+\hat{c}=c
+\qquad\text{and}\qquad
+\operatorname{IoU}(\hat{b},b)\ge \tau_{\mathrm{IoU}}.
+\]
+
+Given counts of true positives ($TP$), false positives ($FP$), false negatives ($FN$), and true negatives ($TN$), we compute the standard metrics
+\[
+\operatorname{Precision}=\frac{TP}{TP+FP},
+\qquad
+\operatorname{Recall}=\frac{TP}{TP+FN}.
+\]
+In this project, the true detection rate is equivalent to recall:
+\[
+\operatorname{TDR}=\frac{TP}{TP+FN}.
+\]
+The false positive rate is
+\[
+\operatorname{FPR}=\frac{FP}{FP+TN}.
+\]
+These metrics are useful because they separate two different failure modes: missed pest detections increase $FN$ and reduce TDR, while spurious detections on background clutter increase $FP$ and raise FPR.
+
+For multi-class evaluation, we compute precision and recall separately for each pest class
+\[
+k \in \{\text{rat},\text{mouse},\text{cockroach}\},
+\]
+so that
+\[
+\operatorname{Precision}_k=\frac{TP_k}{TP_k+FP_k},
+\qquad
+\operatorname{Recall}_k=\frac{TP_k}{TP_k+FN_k}.
+\]
+Per-class metrics are important because the three pest categories may differ substantially in apparent size, texture, and visibility, which can lead to class-specific detection behavior.
+
+In addition, we report mean average precision (mAP) at a fixed IoU threshold. Let
+\[
+P_k(r)
+\]
+denote the precision-recall curve for class $k$ obtained by varying the confidence threshold. The average precision for class $k$ is
+\[
+\operatorname{AP}_k
+=
+\int_0^1 P_k(r)\,dr,
+\]
+or its standard discrete approximation in implementation. The mean average precision is then
+\[
+\operatorname{mAP}
+=
+\frac{1}{K}\sum_{k=1}^K \operatorname{AP}_k,
+\]
+where $K=3$ in our setting. This summary metric is useful because it evaluates ranking quality across confidence thresholds rather than at only one operating point.
+
+The current evaluation script supports thresholded detection analysis with configurable confidence and IoU settings, i.e.,
+\[
+\tau_{\mathrm{conf}} \in [0,1],
+\qquad
+\tau_{\mathrm{IoU}} \in [0,1],
+\]
+so that model behavior can be studied under different operating conditions. This is especially relevant in pest detection, where deployment priorities may favor higher recall or lower false alarm rates depending on the application context.
 
 For the final report, we plan to present:
 \begin{itemize}[leftmargin=1.5em]
@@ -144,6 +398,7 @@ For the final report, we plan to present:
     \item qualitative failure examples.
 \end{itemize}
 
+In addition to the aggregate metrics above, qualitative failure examples will help interpret whether errors are caused by small-object scale, occlusion, cluttered backgrounds, or synthetic-to-real mismatch. Together, these quantitative and qualitative measures provide a more complete picture of detector performance than any single scalar metric alone.
 \section{Current Results and Project Status}
 The engineering pipeline is substantially further along than the final empirical evaluation. At the time of writing, the following components are implemented:
 
