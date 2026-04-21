@@ -29,131 +29,194 @@
 
 \maketitle
 
-\begin{abstract}
-Collecting labeled pest detection data in real commercial kitchens is difficult because infestations are rare, annotations are expensive, and privacy or sanitation constraints limit data collection. This project studies whether synthetic data can serve as a practical substitute for early-stage detector training. We build an automated pipeline that composes pest assets into kitchen backgrounds, exports bounding-box annotations, and trains a transformer-based object detector using the generated dataset. Our current implementation supports three pest classes: rat, mouse, and cockroach. The pipeline includes kitchen-background collection, synthetic image generation with automatic labels, dataset splitting, DETR training, and evaluation utilities. Although the full video-generation stage and final benchmark results are still in progress, the system already establishes a reproducible framework for analyzing how synthetic scene variation affects pest detection performance. This report describes the motivation, pipeline design, modeling choices, experimental protocol, current status, limitations, and the next steps required to close the gap between image-level synthetic training and the final video-based project objective.
-\end{abstract}
+\section*{Part I: Executive Summary}
 
-\section{Introduction}
-Automated pest detection is a useful computer vision problem with direct relevance to food safety, public health, and commercial kitchen operations. Early detection of pests such as rats, mice, and cockroaches can reduce contamination risk and help operators intervene before infestations become severe. In practice, however, training a robust pest detector is constrained by data scarcity. Real images or videos of pests in kitchens are difficult to collect at scale, and even when footage is available, bounding-box annotation is labor-intensive.
+\subsection*{The Problem}
+Commercial kitchens need to stay clean, safe, and pest-free. A camera-based pest detector could help by monitoring kitchens during off hours and alerting staff when rats, mice, or cockroaches appear. The main obstacle is data. Real pest footage from kitchens is hard to collect, rare when things are going well, and expensive to label frame by frame.
 
-Synthetic data offers a practical alternative. If realistic synthetic scenes can be generated with accurate labels, then detector development can proceed without depending entirely on expensive real-world annotation. Synthetic data is especially attractive for rare-event problems, where the positive class is inherently underrepresented. In our setting, synthetic generation also allows direct control over scene variables such as pest class, object scale, background clutter, visibility, and lighting.
+Our project studies whether synthetic data can help solve this problem. Instead of waiting for large amounts of real footage, we generate our own labeled pest scenes automatically. This lets us create training examples for all three target pests while controlling where the pest appears, how large it is, and whether the frame contains a pest at all.
 
-The goal of this project is to build an end-to-end pipeline that starts from kitchen imagery, generates labeled synthetic pest scenes, and trains a vision-transformer-based detector to localize and classify pests. Our longer-term assignment target is video-based generation with frame-level labels, but the current repository already supports an image-level synthetic training workflow that serves as the core minimum viable system. The central research question is whether synthetic data can effectively train a pest detector and what aspects of synthetic variation matter most for generalization.
+\subsection*{Method}
+Our method is a synthetic video-data pipeline built around Blender. We first collect kitchen background images and curate three-dimensional pest models for rats, mice, and cockroaches. We then generate short synthetic clips by placing a pest into a kitchen scene, rendering each frame, and exporting a bounding box automatically from the rendered geometry. This avoids manual labeling and lets us control class balance, object scale, motion, and empty frames.
 
-\section{Problem Statement}
-We study the following supervised detection problem. Let
-\[
-x \in \mathbb{R}^{H \times W \times 3}
-\]
-denote an input kitchen image, or more generally let
-\[
-x_t \in \mathbb{R}^{H \times W \times 3}, \qquad t=1,\dots,T,
-\]
-denote the frames of a kitchen video. For each image or frame, the model must identify whether a pest is present, classify its type, and predict a bounding box around it. The three target classes in this project are:
+Because our training code expects a standard object-detection dataset, we flatten the rendered clips into labeled frames and split them into training, validation, and test sets. We then train and evaluate detection models on those frames. In practice, we implemented both a transformer-style detector (DETR) and a more conventional detector (Faster R-CNN), then compared how they behaved on the same synthetic benchmark.
 
+The system now supports:
+\begin{itemize}[leftmargin=1.5em]
+    \item three pest classes: rat, mouse, and cockroach,
+    \item 30-second synthetic clips,
+    \item frames with pests and frames with no pests,
+    \item automatic train/validation/test splitting,
+    \item detector training and evaluation,
+    \item demo video export and diagnostic visualizations.
+\end{itemize}
+
+\subsection*{Results}
+The project reached an important milestone: the full local synthetic pipeline now works end to end. We can generate clips, export labels, train a detector, evaluate it, and inspect the predictions visually.
+
+We tested two detector families. We first implemented DETR, a transformer-based detector, because the assignment specifically points toward vision transformers. DETR trained successfully, but on our current smoke-scale synthetic benchmark it did not produce a reliable operating point. Its confidence scores collapsed, meaning it could not clearly separate positive frames from negative frames.
+
+We then trained a Faster R-CNN baseline on the same data. This model performed much better on the current held-out synthetic benchmark. On our latest local dataset, called \texttt{video\_frame\_smoke\_v5}, Faster R-CNN achieved:
+\begin{itemize}[leftmargin=1.5em]
+    \item recall: 1.0,
+    \item precision: 1.0,
+    \item frame-level false positive rate: 0.0
+\end{itemize}
+at confidence thresholds 0.5 and 0.2.
+
+The current benchmark was built from 12 synthetic clips, each 30 seconds long, for a total of 1440 rendered frames. After flattening, we split those frames into 1008 training examples, 216 validation examples, and 216 test examples. The final Faster R-CNN run also remained numerically stable throughout training, with no skipped training or validation batches under the positive-anchor batching strategy.
+
+These numbers are only for the local synthetic held-out split, not for real kitchen footage or instructor-provided test videos. Even so, they show that the data pipeline itself is coherent and that the synthetic data are strong enough to support at least one stable baseline detector.
+
+\subsection*{Why This Matters}
+The main contribution of the current stage is not a final production-ready pest detector. It is a working synthetic data pipeline plus a validated local baseline. That is important because it moves the project out of the ``still debugging the pipeline'' stage and into the ``now we can scale, improve realism, and test generalization'' stage.
+
+In practical terms, we now know:
+\begin{itemize}[leftmargin=1.5em]
+    \item automated synthetic pest clip generation is feasible,
+    \item per-frame bounding-box labeling works,
+    \item negative examples can be included without breaking training,
+    \item model choice matters a lot under this synthetic setup.
+\end{itemize}
+
+\subsection*{Current Limitations}
+Although the local baseline is strong, the project is not finished. The current system still has several important limitations:
+\begin{itemize}[leftmargin=1.5em]
+    \item it has only been validated at smoke scale, not at full assignment scale,
+    \item it does not yet adapt scene layout from a single user-provided kitchen image,
+    \item the strongest current model is Faster R-CNN rather than the transformer-based model we initially hoped to use,
+    \item the reported results are synthetic held-out results, not real-world kitchen results.
+\end{itemize}
+
+\subsection*{Future Work}
+The next step is to push from a local smoke-scale baseline to an assignment-scale pipeline. That means generating more and longer clips, moving closer to 30--60 second production-style runs, and validating the system on harder external test data. We also want to revisit transformer-based detection once the larger video pipeline is in place, because the assignment still motivates that direction. Finally, we need to add scene adaptation from a single kitchen image so that the generated videos better match the target environment.
+
+\clearpage
+\section*{Part II: FAQ}
+
+\subsection*{1. Why not just use real pest footage?}
+In an ideal world, we would. The problem is that high-quality real pest footage from kitchens is hard to collect, rare when kitchens are well managed, and time-consuming to label. Synthetic data gives us a way to start building and testing the system without waiting for a large real dataset.
+
+\subsection*{2. What exactly is synthetic about the data?}
+The scenes are rendered automatically. We take kitchen background images, insert pest models into them, and export the labels directly from the rendered geometry. That means the images are artificial, but the labels are exact by construction.
+
+\subsection*{3. What pests does the current system support?}
+The current repository supports three classes:
 \begin{itemize}[leftmargin=1.5em]
     \item rat,
     \item mouse,
     \item cockroach.
 \end{itemize}
 
-Accordingly, the label space is
+\subsection*{4. Are you generating images or videos?}
+We now generate short synthetic clips and export every frame with labels. In practice, the detector is trained on the frames extracted from those clips. So the current system is video-aware, but the training format is still a flattened frame dataset rather than a temporal video model.
+
+\subsection*{5. Did the transformer-based model work?}
+Partially. DETR trained and produced outputs, so the implementation itself worked. But on the current synthetic held-out benchmark, DETR could not find a clean confidence threshold that separated positive frames from negative frames. In other words, the model was trainable but not yet useful as the main baseline.
+
+\subsection*{6. Why did Faster R-CNN work better?}
+On the current synthetic benchmark, Faster R-CNN produced much better score separation between positive and negative frames. It also handled the current smoke-scale dataset more robustly. This suggests that the current synthetic regime is easier for a more conventional detector than for DETR.
+
+\subsection*{7. Are the current results ``good enough'' to claim success?}
+They are good enough to claim that the local synthetic pipeline works and that one detector baseline performs strongly on the local synthetic held-out split. They are not enough to claim final success on the full assignment, because we still need larger-scale generation, single-image kitchen adaptation, and evaluation on external test videos.
+
+\subsection*{8. Could the model just be memorizing the synthetic style?}
+Yes, that is a real concern. A model can perform well on synthetic held-out data and still fail on real video. That is why we are careful to describe the current results as local synthetic smoke-scale results, not final real-world performance.
+
+\subsection*{9. Why are negative frames so important?}
+In kitchen monitoring, false alarms matter. A detector that constantly reports pests in empty frames would not be useful in practice. Negative frames teach the detector when \emph{not} to fire, and they make false positive rate a meaningful metric.
+
+\subsection*{10. What is the most important thing the project has accomplished so far?}
+The most important accomplishment is that the entire local pipeline now works together: generation, labeling, splitting, training, evaluation, visual diagnosis, and demo artifacts. That gives us a solid base for the final stretch of the project.
+
+\subsection*{11. What remains before the project fully matches the assignment prompt?}
+Three items matter most:
+\begin{itemize}[leftmargin=1.5em]
+    \item scaling from smoke-scale runs to assignment-scale generation,
+    \item adapting the synthetic scene from a single kitchen image,
+    \item validating performance on harder test videos beyond the synthetic held-out split.
+\end{itemize}
+
+\subsection*{12. If a skeptical reader asked whether this project is still worthwhile even without final real-video validation, what would you say?}
+Yes. Even before final external validation, the project is worthwhile because it solves the hard engineering problem of building a controllable, labeled synthetic video pipeline for pests in kitchens. That infrastructure is a real result on its own, and it is exactly what makes later model comparison and generalization studies possible.
+
+\clearpage
+\section*{Part III: Technical Appendix}
+
+\section{Problem Statement}
+We study an object-detection problem in kitchen scenes. Let
 \[
-\mathcal{C}=\{\text{rat},\text{mouse},\text{cockroach}\}.
+x_t \in \mathbb{R}^{H \times W \times 3}, \qquad t=1,\dots,T,
 \]
-For a single image $x$, the ground-truth annotation is a finite set
+denote the frames of a kitchen video clip. For each frame, the detector must identify whether a pest is present, classify its type, and predict a bounding box. The target class set is
+\[
+\mathcal{C}=\{\text{rat}, \text{mouse}, \text{cockroach}\}.
+\]
+
+For a single frame $x$, the ground-truth annotation is a finite set
 \[
 y=\{(c_i,b_i)\}_{i=1}^{N_x},
 \]
-where $N_x$ is the number of pests visible in the image, $c_i \in \mathcal{C}$ is the class label, and
+where $N_x$ is the number of pests visible in the frame, $c_i \in \mathcal{C}$ is the class label, and
 \[
-b_i=(x_{c,i},y_{c,i},w_i,h_i)\in[0,1]^4
+b_i=(x_{c,i}, y_{c,i}, w_i, h_i)\in[0,1]^4
 \]
-is the normalized bounding box for the $i$th pest. Thus, the learning problem is set-valued: the detector must predict an unordered collection of object instances rather than a single class label.
+is the normalized center-width-height box for the $i$th pest.
 
-We denote the detector by
+We write the detector as
 \[
 f_\theta : \mathbb{R}^{H \times W \times 3} \to \widehat{\mathcal{Y}},
 \]
 where $\theta$ are model parameters and $\widehat{\mathcal{Y}}$ is the space of predicted labeled boxes. Given a training dataset
 \[
-\mathcal{D}=\{(x^{(m)},y^{(m)})\}_{m=1}^n,
+\mathcal{D}=\{(x^{(m)}, y^{(m)})\}_{m=1}^{n},
 \]
-the standard supervised objective is to learn
+the generic supervised objective is
 \[
 \hat{\theta}
 =
 \arg\min_{\theta}
 \frac{1}{n}\sum_{m=1}^{n}
-\mathcal{L}\bigl(f_\theta(x^{(m)}),y^{(m)}\bigr),
+\mathcal{L}\bigl(f_\theta(x^{(m)}), y^{(m)}\bigr).
 \]
-where $\mathcal{L}$ is a detection loss combining classification and localization error. In our case, this detector is implemented using a vision-transformer-based architecture, specifically DETR.
 
-The practical project requirement is more specific: the final system should take a kitchen image as input, automatically generate synthetic pest videos of length $30$--$60$ seconds with frame-level labels, and use those generated data to train a vision-transformer detector. If a generated video contains $T$ frames, then its annotation may be written as
-\[
-\mathcal{Y}_{1:T} = (y_1,\dots,y_T),
-\]
-where each
-\[
-y_t=\{(c_{t,i},b_{t,i})\}_{i=1}^{N_t}
-\]
-records the pest instances visible in frame $t$. The ideal final detector should generalize to held-out test videos while maintaining a high true detection rate and a low false positive rate.
-
-From a distributional perspective, let $P_{\mathrm{real}}$ denote the target distribution of real kitchen frames and let $P_{\mathrm{syn}}$ denote the synthetic distribution induced by the generator. The broader research question is whether a detector trained on samples from $P_{\mathrm{syn}}$ can achieve strong performance on test data drawn from $P_{\mathrm{real}}$. In other words, we seek to understand whether synthetic data can serve as an effective surrogate for scarce real labeled pest footage despite the potential domain gap
+The full assignment target is more ambitious than this framewise formulation. Ideally, the system should take a kitchen photo, adapt a synthetic scene to that layout, generate 30--60 second labeled pest clips, and train a vision-transformer detector that generalizes to external test videos. From a distributional perspective, if $P_{\mathrm{syn}}$ denotes the synthetic frame distribution and $P_{\mathrm{real}}$ the target real-world kitchen distribution, then the key challenge is that
 \[
 P_{\mathrm{syn}} \neq P_{\mathrm{real}}.
 \]
 
-Our current implementation addresses the core training problem first by building an image-level synthetic data pipeline with automatic bounding-box annotation. Formally, this means we first construct
-\[
-\mathcal{D}_{\mathrm{syn}}^{\mathrm{img}}=\{(x^{(m)},y^{(m)})\}_{m=1}^n
-\]
-for static images before extending to video-level data
-\[
-\mathcal{D}_{\mathrm{syn}}^{\mathrm{vid}}=\{(X^{(m)},\mathcal{Y}^{(m)}_{1:T_m})\}_{m=1}^N.
-\]
-This is a deliberate systems choice: before scaling to videos, we need a reproducible foundation for asset placement, scene randomization, label correctness, and model training. Establishing the image-level pipeline first therefore provides a controlled setting in which to validate the synthetic generation process, the exported annotations, and the end-to-end detector training procedure.
 \section{Related Work}
-This project lies at the intersection of three areas: object detection, synthetic data generation, and agricultural or pest-related visual recognition.
+Transformer-based detection is represented here by DETR, which formulates object detection as direct set prediction rather than proposal generation plus postprocessing \cite{carion2020detr}. DETR is relevant because the assignment explicitly points toward a vision-transformer-style detector.
 
-First, modern object detection has increasingly shifted toward transformer-based architectures. DETR introduced an end-to-end detection framework that removes many hand-engineered post-processing components and frames detection as direct set prediction \cite{carion2020detr}. This makes it a natural baseline for our work, especially because the course project explicitly requires a vision-transformer-style detector.
+Synthetic data generation is a natural fit for rare-event vision problems because it replaces expensive manual labeling with controllable rendering. The main challenge is domain gap. A synthetic pipeline can provide clean labels and broad scene variation, but the resulting model may still overfit to rendered textures, object placement patterns, or lighting statistics.
 
-Second, synthetic data has become a common strategy when real annotation is scarce or expensive. Synthetic pipelines are widely used in robotics, autonomous driving, and industrial inspection because they provide perfectly aligned labels and controlled variation. The main challenge is domain gap: a detector trained on synthetic imagery may overfit to rendering artifacts or unrealistic scene statistics. Domain randomization is a common mitigation strategy, where nuisance factors such as texture, scale, position, clutter, and lighting are varied aggressively to encourage robustness.
-
-Third, visual pest detection has clear real-world relevance but comparatively limited openly available labeled data, especially for kitchen or sanitation environments. Many applied systems rely on trap images, microscopy, or highly constrained agricultural settings rather than unconstrained indoor scenes. That makes synthetic generation especially valuable in our problem setting.
-
-Our contribution is not a new detection architecture. Instead, we build an integrated, reproducible pipeline for synthetic pest scene generation and transformer-based training, then use it as a testbed for studying whether synthetic data is sufficient for this application.
+Our contribution is therefore primarily systems and empirical rather than architectural. We build a reproducible pipeline for kitchen-background collection, Blender-based pest clip generation, per-frame labeling, detector training, and diagnosis, then study what detector behavior looks like under that pipeline.
 
 \section{Method}
 \subsection{Pipeline Overview}
-The repository implements an automated workflow with the following stages:
-
+The repository implements the following automated workflow:
 \begin{enumerate}[leftmargin=1.5em]
     \item collect kitchen background images,
-    \item organize pest assets for each target class,
-    \item generate labeled synthetic scenes,
-    \item split the resulting detection dataset,
-    \item train a DETR-based detector,
-    \item evaluate detection performance on held-out data.
+    \item organize pest assets by class,
+    \item generate synthetic clips with per-frame labels,
+    \item flatten frames into a standard detection dataset,
+    \item split the dataset into train/validation/test partitions,
+    \item train and evaluate detectors,
+    \item generate diagnostics, overlays, demo videos, and report figures.
 \end{enumerate}
 
-The design goal is reproducibility. Each stage is exposed through scripts so that the dataset and model artifacts can be regenerated without manual annotation.
-
-\subsection{Background Collection}
-Kitchen backgrounds are collected from Places365. We use the dataset to extract kitchen-related indoor scenes, specifically classes such as \texttt{kitchen} and \texttt{restaurant\_kitchen}. These images act as scene backgrounds onto which pest assets are rendered or composited. Using a large scene repository provides environmental diversity and reduces the chance that the detector memorizes a narrow set of layouts.
-
-\subsection{Pest Assets}
-The current pipeline organizes three-dimensional pest assets under class-specific directories:
+\subsection{Background Collection and Assets}
+Kitchen backgrounds are collected from Places365 and filtered to kitchen-related scene categories such as \texttt{kitchen} and \texttt{restaurant\_kitchen}. Pest assets are organized under:
 \begin{itemize}[leftmargin=1.5em]
     \item \texttt{assets/models/rat/},
     \item \texttt{assets/models/mouse/},
     \item \texttt{assets/models/cockroach/}.
 \end{itemize}
 
-The use of 3D assets is important because it allows future extension to video generation, viewpoint variation, animation, and more realistic scene interaction. Even in the image-level stage, explicit asset-based generation provides tighter control than generic image editing.
+The project includes an asset audit stage because not every downloaded model rendered plausibly. The current smoke-scale video runs use curated model pools and explicit exclude lists.
 
-\subsection{Synthetic Scene Generation}
-Synthetic training examples are produced with Blender-based automation. We model the generator as a stochastic scene-construction process. For each sample, a kitchen background
+\subsection{Synthetic Video Generation}
+The core generator is Blender-based and operates clip by clip. For each clip, a background
 \[
 B \sim P_B,
 \]
@@ -161,53 +224,41 @@ a pest asset
 \[
 A \sim P_A,
 \]
-and a collection of nuisance parameters
+and a set of nuisance parameters
 \[
 \phi \sim P_{\Phi}
 \]
-are sampled, where $\phi$ may include object position, scale, in-plane rotation, lighting, occlusion, and other rendering variables. The synthetic image is then generated by a rendering/compositing map
+are sampled. Here $\phi$ includes position, scale, heading, class-dependent motion, pauses, negative-frame injection, and visibility filtering. For a clip of length $T$, the generator produces
 \[
-x = G(B,A,\phi),
+x_t = G(B, A, \phi_t), \qquad t=1,\dots,T,
 \]
-where $x \in \mathbb{R}^{H \times W \times 3}$ denotes the final RGB image. The corresponding annotation is produced automatically from the scene geometry,
+with labels
 \[
-y = T(A,\phi),
+y_t = T(A, \phi_t).
 \]
-where $T$ extracts the pest class and its visible bounding box from the rendered scene.
 
-Equivalently, the synthetic dataset may be viewed as a collection
-\[
-\mathcal{D}_{\mathrm{syn}}=\{(x_i,y_i)\}_{i=1}^n,
-\]
-with each pair generated independently from the sampling-and-rendering pipeline above. This formulation makes clear that scene diversity is controlled by the distributions $P_B$, $P_A$, and $P_{\Phi}$: increasing the support of these distributions increases variation in backgrounds, pest appearance, and nuisance factors, which is important for reducing overfitting to narrow synthetic scene statistics.
-
-In practice, for each generated sample the pipeline selects a kitchen background, places a pest instance, applies randomized scene parameters, and exports both the rendered image and the corresponding bounding-box label. Output files include:
-
+The current smoke-scale configuration uses 30-second clips at 4 FPS. The generator also supports:
 \begin{itemize}[leftmargin=1.5em]
-    \item a rendered image,
-    \item a normalized bounding-box label file,
-    \item metadata describing the generated sample.
+    \item negative clips with no pest,
+    \item negative frames inside positive clips,
+    \item shard-friendly clip indexing via \texttt{start\_clip},
+    \item curated model directories plus exclude lists,
+    \item visibility filtering so that tiny or nearly invisible positives are not mislabeled.
 \end{itemize}
 
-The current generator focuses on image-level examples rather than full video clips. However, the same stochastic formulation extends naturally to temporal data. For a video sequence of length $T$, one may write
-\[
-x_t = G(B_t,A_t,\phi_t), \qquad t=1,\dots,T,
-\]
-where the parameters are allowed to evolve over time according to motion paths, camera variation, or time-varying visibility. Thus, the current image-level generator serves as the static special case of a more general framewise synthetic video model.
-
 \subsection{Label Format}
-Bounding boxes are exported automatically in normalized coordinates. For a rendered pest instance with pixel-space bounding box
+Bounding boxes are exported in normalized center-width-height form. For a pixel-space box
 \[
-(x_{\min},y_{\min},x_{\max},y_{\max}),
+(x_{\min}, y_{\min}, x_{\max}, y_{\max}),
 \]
-we define the center-width-height representation
+we define
 \[
 x_c=\frac{x_{\min}+x_{\max}}{2}, \qquad
 y_c=\frac{y_{\min}+y_{\max}}{2}, \qquad
 w=x_{\max}-x_{\min}, \qquad
 h=y_{\max}-y_{\min}.
 \]
-If the rendered image has width $W$ and height $H$, then the normalized box is
+If the image size is $W \times H$, then the normalized box is
 \[
 \tilde{b}
 =
@@ -216,260 +267,264 @@ If the rendered image has width $W$ and height $H$, then the normalized box is
 \frac{y_c}{H},
 \frac{w}{W},
 \frac{h}{H}
-\right)
-\in [0,1]^4.
+\right)\in[0,1]^4.
 \]
-Accordingly, each training annotation can be represented as
+Each annotation therefore has the form
 \[
 y=(c,\tilde{b}),
 \]
-where $c \in \{\text{rat},\text{mouse},\text{cockroach}\}$ is the class label and $\tilde{b}$ is the normalized bounding box.
+where $c \in \{\text{rat}, \text{mouse}, \text{cockroach}\}$.
 
-Because the scene is generated synthetically, the label is obtained directly from the underlying scene geometry rather than from manual human annotation. In other words, if $\Pi(\cdot)$ denotes projection from scene coordinates to image coordinates, then the exported box is determined by the rendered object support:
-\[
-\tilde{b} = \operatorname{BBox}\bigl(\Pi(A,\phi)\bigr),
-\]
-followed by normalization by $(W,H)$. This guarantees consistency between the image and the annotation by construction. One of the main advantages of synthetic data in this context is therefore that annotation correctness can be enforced algorithmically, avoiding the cost and variability of external labeling workflows.
-\subsection{Detector}
-We use DETR as the baseline detector \cite{carion2020detr}. DETR formulates object detection as a direct set-prediction problem, which removes the need for hand-designed proposal generation or non-maximum suppression and makes it well aligned with the project requirement to use a vision-transformer-style detector for pest localization and classification.
+\subsection{Video-to-Detection Reuse}
+The current detector stack consumes an image-detection dataset rather than a temporal model input. We therefore flatten clip folders into:
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{images/},
+    \item \texttt{labels/},
+    \item \texttt{manifest.csv}.
+\end{itemize}
+This allows reuse of the same splitting, training, and evaluation code on video-derived frames.
 
-Let an input image be denoted by
+\subsection{Detectors}
+We implemented DETR as the initial transformer-based detector \cite{carion2020detr}. DETR predicts a fixed set of slots
 \[
-x \in \mathbb{R}^{H \times W \times 3}.
+\hat{y}_i=(\hat{p}_i,\hat{b}_i), \qquad i=1,\dots,Q,
 \]
-After passing $x$ through a convolutional backbone, DETR produces a spatial feature map
-\[
-F \in \mathbb{R}^{d \times h \times w},
-\]
-which is flattened into a sequence of visual tokens and processed by a transformer encoder. A transformer decoder then takes a fixed set of learned object queries
-\[
-\{q_1,\dots,q_Q\}, \qquad q_i \in \mathbb{R}^d,
-\]
-and outputs $Q$ prediction slots. Each slot predicts a class probability vector and a bounding box:
-\[
-\hat{y}_i = (\hat{p}_i,\hat{b}_i), \qquad i=1,\dots,Q,
-\]
-where $\hat{p}_i \in \Delta^{K+1}$ is a probability distribution over $K$ pest classes plus one special ``no-object'' class, and
-\[
-\hat{b}_i = (\hat{c}_{x,i},\hat{c}_{y,i},\hat{w}_i,\hat{h}_i) \in [0,1]^4
-\]
-is a normalized bounding box. In our project, the foreground classes are
-\[
-K=3, \qquad \{\text{rat},\text{mouse},\text{cockroach}\}.
-\]
+where $\hat{p}_i$ is a class distribution over the pest classes plus a no-object class and $\hat{b}_i \in [0,1]^4$ is a normalized box. Training uses Hungarian matching to align predictions and ground-truth objects.
 
-For an image with $N$ ground-truth objects, the target annotation is a set
-\[
-y = \{(c_j,b_j)\}_{j=1}^N,
-\]
-where $c_j \in \{1,\dots,K\}$ is the pest class and
-\[
-b_j = (c_{x,j},c_{y,j},w_j,h_j) \in [0,1]^4
-\]
-is the normalized ground-truth box. Since DETR always outputs a fixed number $Q$ of predictions with $Q \ge N$, training requires matching the unordered predictions to the unordered ground-truth objects. This is done by bipartite matching via the Hungarian algorithm:
-\[
-\sigma^\star = \arg\min_{\sigma \in \mathfrak{S}_Q}
-\sum_{j=1}^{N}
-\mathcal{C}\bigl((c_j,b_j),(\hat{p}_{\sigma(j)},\hat{b}_{\sigma(j)})\bigr),
-\]
-where $\mathfrak{S}_Q$ denotes the set of permutations of $\{1,\dots,Q\}$ and $\mathcal{C}$ is a matching cost combining classification and localization terms.
+We also implemented a torchvision Faster R-CNN baseline. This became the practical local baseline after diagnosis because DETR exhibited confidence and ranking collapse on the current synthetic video-frame split, while Faster R-CNN trained cleanly and separated positive from negative frames much more reliably. We stabilized Faster R-CNN further with a \texttt{positive\_anchor} batching strategy, which ensures that each mini-batch contains at least one positive frame and avoids all-negative mini-batches that can cause non-finite losses in heavily negative datasets.
 
-After matching, the training loss is applied only to the assigned prediction slots. A standard DETR objective is
-\[
-\mathcal{L}
-=
-\sum_{j=1}^{N}
-\left[
--\log \hat{p}_{\sigma^\star(j)}(c_j)
-+ \lambda_{1}\|b_j-\hat{b}_{\sigma^\star(j)}\|_1
-+ \lambda_{\mathrm{giou}}\mathcal{L}_{\mathrm{GIoU}}(b_j,\hat{b}_{\sigma^\star(j)})
-\right]
-+
-\sum_{i \notin \{\sigma^\star(1),\dots,\sigma^\star(N)\}}
--\log \hat{p}_i(\varnothing),
-\]
-where $\varnothing$ denotes the no-object class, $\|\cdot\|_1$ is the coordinate-wise $\ell_1$ loss, and $\mathcal{L}_{\mathrm{GIoU}}$ is the generalized IoU loss. The first summation encourages correct pest classification and accurate box localization for matched objects, while the second penalizes unmatched queries unless they predict no object.
-
-This formulation is particularly attractive for our setting because each synthetic image contains a small number of pests and comes with automatically generated bounding boxes. Thus, DETR can be trained end-to-end on the synthetic dataset without additional post-processing heuristics. After dataset generation, we split the data into training, validation, and test subsets and optimize the detector parameters by minimizing
-\[
-\hat{\theta}
-=
-\arg\min_{\theta}
-\frac{1}{n}
-\sum_{m=1}^{n}
-\mathcal{L}\bigl(f_{\theta}(x^{(m)}), y^{(m)}\bigr),
-\]
-where $f_{\theta}$ denotes the DETR model and $\{(x^{(m)},y^{(m)})\}_{m=1}^n$ are the synthetic training examples. The repository includes scripts for both training and evaluation, enabling end-to-end experiments once a generated dataset is available.
 \section{Experimental Setup}
-\subsection{Dataset Construction}
-At the time of writing, the repository contains a smoke-test synthetic dataset with 200 labeled images balanced across the three classes. A corresponding split file partitions the data into:
-
-\begin{itemize}[leftmargin=1.5em]
-    \item 140 training images,
-    \item 30 validation images,
-    \item 30 test images.
-\end{itemize}
-
-This dataset is not large enough to support strong claims about final model performance, but it is sufficient for pipeline validation, training-script debugging, and early-stage sanity checks.
-
-\subsection{Training Protocol}
-The default training configuration uses:
-\begin{itemize}[leftmargin=1.5em]
-    \item 20 epochs,
-    \item batch size 4,
-    \item learning rate $1 \times 10^{-4}$.
-\end{itemize}
-
-These settings are intended for a baseline run rather than a fully optimized training schedule. As the dataset grows, training hyperparameters and augmentation policies will need to be revisited.
-
-\subsection{Evaluation Metrics}
-The final assignment emphasizes true detection rate and false positive rate. To define these quantities precisely, let a predicted bounding box $\hat{b}$ with class label $\hat{c}$ be counted as a true positive if (i) the predicted class matches a ground-truth class $c$, (ii) the prediction confidence exceeds a chosen threshold $\tau_{\mathrm{conf}}$, and (iii) the overlap between prediction and ground truth exceeds a chosen IoU threshold $\tau_{\mathrm{IoU}}$. The intersection-over-union between a predicted box $\hat{b}$ and a ground-truth box $b$ is
-\[
-\operatorname{IoU}(\hat{b},b)
-=
-\frac{|\hat{b}\cap b|}{|\hat{b}\cup b|}.
-\]
-A detection is therefore considered correct when
-\[
-\hat{c}=c
-\qquad\text{and}\qquad
-\operatorname{IoU}(\hat{b},b)\ge \tau_{\mathrm{IoU}}.
-\]
-
-Given counts of true positives ($TP$), false positives ($FP$), false negatives ($FN$), and true negatives ($TN$), we compute the standard metrics
-\[
-\operatorname{Precision}=\frac{TP}{TP+FP},
-\qquad
-\operatorname{Recall}=\frac{TP}{TP+FN}.
-\]
-In this project, the true detection rate is equivalent to recall:
-\[
-\operatorname{TDR}=\frac{TP}{TP+FN}.
-\]
-The false positive rate is
-\[
-\operatorname{FPR}=\frac{FP}{FP+TN}.
-\]
-These metrics are useful because they separate two different failure modes: missed pest detections increase $FN$ and reduce TDR, while spurious detections on background clutter increase $FP$ and raise FPR.
-
-For multi-class evaluation, we compute precision and recall separately for each pest class
-\[
-k \in \{\text{rat},\text{mouse},\text{cockroach}\},
-\]
-so that
-\[
-\operatorname{Precision}_k=\frac{TP_k}{TP_k+FP_k},
-\qquad
-\operatorname{Recall}_k=\frac{TP_k}{TP_k+FN_k}.
-\]
-Per-class metrics are important because the three pest categories may differ substantially in apparent size, texture, and visibility, which can lead to class-specific detection behavior.
-
-In addition, we report mean average precision (mAP) at a fixed IoU threshold. Let
-\[
-P_k(r)
-\]
-denote the precision-recall curve for class $k$ obtained by varying the confidence threshold. The average precision for class $k$ is
-\[
-\operatorname{AP}_k
-=
-\int_0^1 P_k(r)\,dr,
-\]
-or its standard discrete approximation in implementation. The mean average precision is then
-\[
-\operatorname{mAP}
-=
-\frac{1}{K}\sum_{k=1}^K \operatorname{AP}_k,
-\]
-where $K=3$ in our setting. This summary metric is useful because it evaluates ranking quality across confidence thresholds rather than at only one operating point.
-
-The current evaluation script supports thresholded detection analysis with configurable confidence and IoU settings, i.e.,
-\[
-\tau_{\mathrm{conf}} \in [0,1],
-\qquad
-\tau_{\mathrm{IoU}} \in [0,1],
-\]
-so that model behavior can be studied under different operating conditions. This is especially relevant in pest detection, where deployment priorities may favor higher recall or lower false alarm rates depending on the application context.
-
-For the final report, we plan to present:
-\begin{itemize}[leftmargin=1.5em]
-    \item per-class precision and recall,
-    \item overall true detection rate,
-    \item false positive rate,
-    \item qualitative failure examples.
-\end{itemize}
-
-In addition to the aggregate metrics above, qualitative failure examples will help interpret whether errors are caused by small-object scale, occlusion, cluttered backgrounds, or synthetic-to-real mismatch. Together, these quantitative and qualitative measures provide a more complete picture of detector performance than any single scalar metric alone.
-\section{Current Results and Project Status}
-The engineering pipeline is substantially further along than the final empirical evaluation. At the time of writing, the following components are implemented:
-
-\begin{itemize}[leftmargin=1.5em]
-    \item automated Places365 download and kitchen-image filtering,
-    \item organization of pest assets by class,
-    \item Blender-based synthetic image generation,
-    \item automatic bounding-box export,
-    \item dataset split generation,
-    \item DETR training and evaluation scripts.
-\end{itemize}
-
-In addition, a sample synthetic dataset has already been produced locally, and the repository contains the scripts required to regenerate it.
-
-The main missing empirical artifact is a confirmed trained checkpoint and final evaluation report. As a result, we do not yet report final quantitative detector performance. This is an important limitation: the current project status supports a systems and methodology write-up, but not a conclusive answer to the full research question. Rather than fabricating metrics, we leave the main result table in placeholder form below.
+\subsection{Datasets}
+The repository now contains several milestone datasets. The most important are summarized below.
 
 \begin{table}[H]
     \centering
-    \caption{Planned result table for the final submission.}
+    \caption{Key local synthetic datasets used in the current project stage.}
     \begin{tabular}{lcccc}
         \toprule
-        Training Data & Precision & Recall & TDR & FPR \\
+        Dataset & Clips & Total Frames & Split (train/val/test) & Notes \\
         \midrule
-        Synthetic only (smoke dataset) & TBD & TBD & TBD & TBD \\
-        Synthetic only (full dataset) & TBD & TBD & TBD & TBD \\
-        Synthetic + additional randomization & TBD & TBD & TBD & TBD \\
-        Synthetic video frames & TBD & TBD & TBD & TBD \\
+        \texttt{image\_smoke\_v1} & -- & 60 images & 41 / 9 / 10 & static image smoke set \\
+        \texttt{video\_frame\_smoke\_v4} & 9 & 1080 & 756 / 162 / 162 & curated models, negative clips \\
+        \texttt{video\_frame\_smoke\_v5} & 12 & 1440 & 1008 / 216 / 216 & current main local baseline set \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-Even without final metrics, the current pipeline already establishes several useful conclusions. First, the project is technically feasible in a reproducible way. Second, synthetic generation with automatic labels is a practical mechanism for bootstrapping pest detection data. Third, the largest remaining challenges are no longer dataset plumbing or training infrastructure, but realism, scale, and synthetic-to-real generalization.
-
-\section{Discussion}
-\subsection{Why Synthetic Data Is Promising Here}
-This problem is well suited to synthetic data for several reasons. Pest appearances are relatively structured, the number of target classes is small, and annotation quality is critical. Synthetic generation makes it possible to produce arbitrarily many labeled examples at low marginal cost once the scene pipeline is established. It also enables targeted stress testing: we can deliberately vary clutter, object scale, background type, or visibility to understand failure modes.
-
-\subsection{Limitations of the Current System}
-The current system still has several limitations.
-
-First, the synthetic pipeline is image-level rather than fully video-based. This means the repository does not yet satisfy the temporal component of the final assignment. Second, the present dataset scale is modest, so any model trained on it is likely to underfit the intended deployment scenario or overfit to generator artifacts. Third, only a small number of pest assets are currently integrated, which limits appearance diversity. Fourth, the detector has not yet been validated against a realistic held-out video benchmark.
-
-\subsection{Expected Failure Modes}
-Several failure modes are likely:
+The current main detector benchmark is \texttt{video\_frame\_smoke\_v5}. It is derived from 12 synthetic clips, each 30 seconds long at 4 FPS. The corresponding audit shows:
 \begin{itemize}[leftmargin=1.5em]
-    \item overfitting to synthetic lighting or compositing artifacts,
-    \item confusion between small pests and background clutter,
-    \item missed detections under heavy occlusion or extreme scale variation,
-    \item false positives triggered by kitchen objects with pest-like contours.
+    \item train negative frame rate: about $54.1\%$,
+    \item validation negative frame rate: about $54.2\%$,
+    \item test negative frame rate: about $53.7\%$.
+\end{itemize}
+This matters because naive batching with batch size 2 would naturally create many all-negative mini-batches.
+
+\subsection{Training Protocol}
+The DETR runs in this repository were primarily smoke and diagnostic experiments. The current stable local baseline uses Faster R-CNN with:
+\begin{itemize}[leftmargin=1.5em]
+    \item architecture: \texttt{fasterrcnn\_mobilenet\_v3\_large\_320\_fpn},
+    \item pretrained torchvision weights,
+    \item 3 epochs,
+    \item batch size 2,
+    \item learning rate $5 \times 10^{-5}$,
+    \item gradient clipping norm 5.0,
+    \item \texttt{positive\_anchor} batching,
+    \item zero worker subprocesses on Windows for stability.
 \end{itemize}
 
-These failure modes motivate the next phase of work: richer asset variation, improved rendering realism, hard negative examples, and full video generation with realistic motion.
-
-\section{Future Work}
-The next development steps are clear.
-
+\subsection{Evaluation Protocol}
+The current evaluation pipeline is thresholded rather than mAP-based. A predicted labeled box $(\hat{c}, \hat{b})$ is counted as a true positive when:
 \begin{enumerate}[leftmargin=1.5em]
-    \item Train the baseline DETR model to completion and export a reproducible evaluation report.
-    \item Scale the synthetic dataset beyond the current smoke-test size.
-    \item Extend the generator from static images to 30--60 second labeled videos.
-    \item Add motion policies, occlusion events, and temporal camera variation.
-    \item Study synthetic randomization as an ablation variable rather than treating generation as fixed.
-    \item Evaluate whether synthetic pretraining plus limited real fine-tuning improves generalization.
+    \item the predicted class matches the ground-truth class,
+    \item the confidence exceeds a chosen threshold $\tau_{\mathrm{conf}}$,
+    \item the box overlap satisfies
+    \[
+    \operatorname{IoU}(\hat{b}, b)\ge \tau_{\mathrm{IoU}}.
+    \]
 \end{enumerate}
 
-From a research perspective, the most interesting question is not simply whether synthetic data works at all, but which forms of synthetic diversity matter most. A carefully designed ablation study could compare background diversity, lighting randomization, object pose, pest size, clutter, and temporal motion to determine which factors most influence detector quality.
+We compute
+\[
+\operatorname{Precision}=\frac{TP}{TP+FP},
+\qquad
+\operatorname{Recall}=\frac{TP}{TP+FN},
+\qquad
+\operatorname{TDR}=\operatorname{Recall}.
+\]
+
+The current false positive metric is frame-level on negative frames:
+\[
+\operatorname{FPR}_{\mathrm{frame}}
+=
+\frac{\#\{\text{negative frames with at least one prediction}\}}
+{\#\{\text{negative frames}\}}.
+\]
+The main reported operating points are confidence thresholds 0.5 and 0.2 with IoU threshold 0.5.
+
+\section{Results}
+\subsection{Headline Results}
+The most important current empirical finding is that detector choice matters substantially under the current synthetic smoke-scale regime. DETR is trainable in the repository, but it does not provide a usable held-out operating point on the current video-frame split. Faster R-CNN, by contrast, performs strongly on the same synthetic pipeline.
+
+\begin{table}[H]
+    \centering
+    \caption{Current main local baseline run on \texttt{video\_frame\_smoke\_v5}.}
+    \begin{tabular}{lcc}
+        \toprule
+        Quantity & Value & Notes \\
+        \midrule
+        Detector & Faster R-CNN & \texttt{fasterrcnn\_mobilenet\_v3\_large\_320\_fpn} \\
+        Dataset & \texttt{video\_frame\_smoke\_v5} & derived from 12 synthetic clips \\
+        Train / Val / Test & 1008 / 216 / 216 & flattened frame split \\
+        Best validation loss & 0.831835 & epoch 3 \\
+        Skipped train batches & 0 & positive-anchor batching \\
+        Skipped validation batches & 0 & positive-anchor batching \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \caption{Current key held-out synthetic test results. All values are local smoke-scale synthetic results, not external instructor-test results.}
+    \begin{tabular}{llcccc}
+        \toprule
+        Model & Dataset / Threshold & Precision & Recall & TDR & Frame FPR \\
+        \midrule
+        DETR & v4 @ 0.50 & 0.0000 & 0.0000 & 0.0000 & 0.0000 \\
+        DETR & v4 @ 0.20 & 0.0000 & 0.0000 & 0.0000 & 0.0000 \\
+        DETR diagnostic & v4 @ 0.01 & 0.0021 & 0.4658 & 0.4658 & 1.0000 \\
+        Faster R-CNN & v4 balanced @ 0.50 & 0.9865 & 1.0000 & 1.0000 & 0.0000 \\
+        Faster R-CNN & v5 balanced @ 0.50 & 1.0000 & 1.0000 & 1.0000 & 0.0000 \\
+        Faster R-CNN & v5 balanced @ 0.20 & 1.0000 & 1.0000 & 1.0000 & 0.0000 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+These numbers support three conclusions:
+\begin{enumerate}[leftmargin=1.5em]
+    \item the synthetic pipeline is not fundamentally broken,
+    \item the DETR failure mode is detector-specific rather than obviously data-pipeline-wide,
+    \item the current local engineering baseline is stable enough to support close-out and write-up.
+\end{enumerate}
+
+The most important result to report is therefore the current Faster R-CNN baseline on \texttt{video\_frame\_smoke\_v5}: on the local held-out synthetic test split, it achieves recall 1.0, precision 1.0, and frame-level false positive rate 0.0 at both confidence thresholds 0.5 and 0.2. This is the strongest local benchmark currently supported by the repository.
+
+\subsection{DETR Diagnosis}
+The DETR diagnosis is informative. Its held-out v4 test recall is zero at thresholds 0.5 and 0.2, but this is not because it produces no scores at all. Diagnostics show that:
+\begin{itemize}[leftmargin=1.5em]
+    \item top scores on positive and negative frames cluster around 0.025,
+    \item thresholds of 0.05 and above suppress all predictions,
+    \item even top-$k$ truncation does not recover a clean operating point,
+    \item at threshold 0.01, recall rises but frame FPR reaches 1.0.
+\end{itemize}
+This is best interpreted as confidence and ranking collapse.
+
+\subsection{Faster R-CNN Diagnosis}
+The Faster R-CNN diagnostics show healthy score separation:
+\begin{itemize}[leftmargin=1.5em]
+    \item on v5 test frames, positive top-score quantiles are high,
+    \item negative-frame top scores are exactly 0.0,
+    \item thresholds 0.5 and 0.2 both remain clean,
+    \item positive-anchor batching eliminates skipped train/validation batches.
+\end{itemize}
+
+\subsection{Engineering Status}
+The repository now contains:
+\begin{itemize}[leftmargin=1.5em]
+    \item smoke-scale 30-second clip generation,
+    \item per-frame labels,
+    \item flattened video-frame datasets,
+    \item held-out train/validation/test splits,
+    \item detector training and evaluation scripts,
+    \item qualitative overlays,
+    \item assembled MP4 demo clips,
+    \item report-ready comparison and summary figures.
+\end{itemize}
+
+\section{Reproducibility Notes}
+\subsection{Core Artifacts}
+The current main artifacts are:
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{data/generated/video\_clip\_smoke\_v5/},
+    \item \texttt{data/generated/video\_frame\_smoke\_v5/},
+    \item \texttt{data/splits/video\_frame\_smoke\_v5/split.json},
+    \item \texttt{outputs/fasterrcnn\_video\_frame\_smoke\_v5\_balanced/},
+    \item \texttt{data/generated/video\_demo\_v1/},
+    \item \texttt{outputs/report\_figures\_v4\_comparison/},
+    \item \texttt{outputs/report\_figures\_v5\_final/}.
+\end{itemize}
+
+\subsection{Main Scripts}
+The core scripts used in the current phase are:
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{scripts/generate\_synthetic\_video\_blender.py},
+    \item \texttt{scripts/flatten\_video\_frames\_for\_detection.py},
+    \item \texttt{scripts/split\_detection\_dataset.py},
+    \item \texttt{scripts/train\_fasterrcnn.py},
+    \item \texttt{scripts/eval\_fasterrcnn.py},
+    \item \texttt{scripts/diagnose\_fasterrcnn\_predictions.py},
+    \item \texttt{scripts/audit\_detection\_dataset.py},
+    \item \texttt{scripts/assemble\_video\_from\_frames.py},
+    \item \texttt{scripts/plot\_baseline\_report\_figures.py}.
+\end{itemize}
+
+\subsection{What a Reproducer Needs}
+To reproduce the current local results, a reader needs:
+\begin{enumerate}[leftmargin=1.5em]
+    \item the repository code,
+    \item the \texttt{pest-synth} environment from \texttt{environment.yml},
+    \item Blender,
+    \item the curated pest model assets,
+    \item kitchen background images,
+    \item the documented generation, split, training, and evaluation steps.
+\end{enumerate}
+
+The raw binary assets and generated datasets are intentionally treated as local artifacts rather than normal git-tracked files, so a complete reproducibility package should include either direct dataset links or a separately shared asset pack and dataset pack.
+
+\subsection{Demo Assets}
+The current qualitative demo assets are 30-second MP4 clips generated from the smoke-scale pipeline. These are suitable for demonstration and report support even though the repository does not currently include a Jupyter notebook demo.
+
+\section{Discussion}
+\subsection{Why the Current Results Matter}
+The current results show that:
+\begin{enumerate}[leftmargin=1.5em]
+    \item the synthetic clip generator can produce coherent labeled data,
+    \item the flattened frame pipeline can train a detector reproducibly,
+    \item negative examples can be incorporated without destabilizing the current Faster R-CNN baseline,
+    \item model architecture choice matters strongly in this regime.
+\end{enumerate}
+
+\subsection{Limitations}
+The current system still has several important limitations.
+
+First, the strongest baseline is not the transformer-based model originally hoped for. Second, the results are purely local synthetic held-out results and do not prove real-world or instructor-test generalization. Third, the generator is still smoke-scale rather than assignment-scale. Fourth, the repository still does not adapt scene layout from a single user-provided kitchen image.
+
+\subsection{Expected Failure Modes Beyond the Current Split}
+Even though v5 performs perfectly on the local synthetic held-out split, several failure modes are still likely in harder settings:
+\begin{itemize}[leftmargin=1.5em]
+    \item domain shift from rendered kitchen backgrounds to real camera footage,
+    \item missed detections under stronger occlusion or clutter,
+    \item sensitivity to unseen pest shapes or asset textures,
+    \item failure under layout conditions not represented in the current background pool,
+    \item degraded performance when clip duration, motion, or scene complexity scale up.
+\end{itemize}
+
+\section{Future Work}
+The next development steps are:
+\begin{enumerate}[leftmargin=1.5em]
+    \item scale the generator from smoke-scale 30-second runs to assignment-scale 30--60 second batches,
+    \item add scene adaptation from a single user-provided kitchen image or justify a baseline approximation,
+    \item validate the current baseline on external or instructor-provided test videos,
+    \item revisit transformer-based detectors after the larger video pipeline is in place,
+    \item expand model diversity, hard negatives, and realism to reduce synthetic-to-real domain gap,
+    \item study whether synthetic pretraining plus limited real fine-tuning improves robustness.
+\end{enumerate}
 
 \section{Conclusion}
-This project develops a reproducible synthetic-data pipeline for pest detection in kitchen environments. The current system collects kitchen backgrounds, integrates pest assets, generates labeled synthetic images, and prepares data for DETR-based training and evaluation. Although the final video-generation stage and quantitative detector results are still pending, the implemented workflow already demonstrates that synthetic data can serve as a practical foundation for this task.
+This project develops a reproducible synthetic-data pipeline for pest detection in kitchen environments. The repository now goes beyond static image generation: it supports smoke-scale 30-second clip generation, per-frame label export, video-to-detection flattening, detector training, diagnostics, demo video assembly, and report-ready artifacts.
 
-The main contribution of the current project stage is engineering infrastructure: a controllable way to generate labeled pest scenes and train a transformer-based detector without relying on large manually annotated real datasets. The next step is to complete large-scale training and video-based evaluation so that the central research question can be answered with empirical evidence rather than only system design arguments.
+Empirically, the strongest current local baseline is Faster R-CNN with positive-anchor batching on \texttt{video\_frame\_smoke\_v5}. On the local held-out synthetic test split, this model achieves recall 1.0, precision 1.0, and frame-level false positive rate 0.0 at confidence thresholds 0.5 and 0.2. DETR, while implemented successfully, currently suffers from confidence and ranking collapse on the analogous smoke-scale video-frame split and is therefore not the recommended local baseline at this stage.
+
+The main contribution of the current project stage is therefore twofold: a working synthetic video-frame generation and labeling pipeline, and a stable local detector baseline that demonstrates the pipeline can support meaningful training and evaluation. The major remaining gap is not basic engineering feasibility. It is closing the distance from local synthetic smoke-scale success to assignment-scale video generation, single-image scene adaptation, and external validation on held-out test videos.
 
 \bibliographystyle{plain}
 \bibliography{references}
