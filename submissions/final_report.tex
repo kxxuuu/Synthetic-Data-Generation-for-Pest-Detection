@@ -13,6 +13,7 @@
 \usepackage{hyperref}
 \usepackage{xcolor}
 \usepackage{enumitem}
+\usepackage{verbatim}
 
 \hypersetup{
     colorlinks=true,
@@ -22,8 +23,8 @@
 }
 
 \title{Synthetic Data Generation for Pest Detection}
-\author{STA 561 Final Project Team}
-\date{\today}
+\author{Ke Xu, Zheming Xu and Zhengchi Ma}
+\date{}
 
 \begin{document}
 
@@ -37,22 +38,18 @@ Commercial kitchens need to stay clean, safe, and pest-free. A camera-based pest
 Our project studies whether synthetic data can help solve this problem. Instead of waiting for large amounts of real footage, we generate our own labeled pest scenes automatically. This lets us create training examples for all three target pests while controlling where the pest appears, how large it is, and whether the frame contains a pest at all.
 
 \subsection*{Our Approach}
-Our approach follows a staged synthetic-data detection pipeline. We first collected kitchen background imagery and curated pest assets for the three target classes: rat, mouse, and cockroach. We then used a Blender-based generation framework to render labeled synthetic clips, with automatic frame-level bounding-box export. After generation, we transformed the clips into a standard object-detection dataset by flattening frames, exporting labels, and creating train, validation, and test splits.
-
-On top of this dataset pipeline, we trained and compared two detector frameworks. The first was DETR, which served as the transformer-based detection baseline. The second was Faster R-CNN, which served as a region-based comparison baseline. We then evaluated both models on held-out synthetic video-frame data and used diagnostic analyses to study detection quality, score behavior, and false-positive performance.
+Our approach follows a staged synthetic-data detection pipeline. We first collected kitchen background imagery and curated pest assets for the three target classes: rat, mouse, and cockroach. We then used a Blender-based generation framework to render labeled synthetic clips, with automatic frame-level bounding-box export. After generation, we transformed the clips into a standard object-detection dataset by flattening frames, exporting labels, and creating train, validation, and test splits. On top of this dataset pipeline, we trained and compared two detector frameworks. The first was DETR, which served as the transformer-based detection baseline. The second was Faster R-CNN, which served as a region-based comparison baseline. We then evaluated both models on held-out synthetic video-frame data and used diagnostic analyses to study detection quality, score behavior, and false-positive performance.
 
 
 \subsection*{Results}
-The project reached an important milestone: the full local synthetic pipeline now works end to end. We can generate clips, export labels, train a detector, evaluate it, and inspect the predictions visually.
+The project showed that: the full local synthetic pipeline can work end to end. We can generate clips, export labels, train a detector, evaluate it, and inspect the predictions visually. We tested two detector families. The transformer-based model trained successfully, but on our current smoke-scale benchmark it did not separate pest frames from empty frames reliably. A more conventional detector worked much better on the same data.
 
-We tested two detector families. The transformer-based model trained successfully, but on our current smoke-scale benchmark it did not separate pest frames from empty frames reliably. A more conventional detector worked much better on the same data.
-
-Our current best benchmark contains 12 synthetic clips, each 30 seconds long, for a total of 1440 rendered frames. After splitting those frames into training, validation, and test sets, the strongest detector achieved: recall: 1.0, precision: 1.0, frame-level false positive rate: 0.0, on the local held-out synthetic test split. These numbers are not final real-world results, but they do show that the data pipeline itself is coherent and that the synthetic data are strong enough to support at least one stable baseline detector. The detailed summary can be found in Table \ref{table1}.
+Our current best benchmark contains 12 synthetic clips, each 30 seconds long, for a total of 1440 rendered frames. After splitting those frames into training, validation, and test sets, the strongest detector achieved recall 1.0, precision 0.939, and frame-level false positive rate 0.0 at confidence threshold 0.5 on the local held-out synthetic test split; at confidence threshold 0.2, it achieved recall 1.0, precision 1.0, and frame-level false positive rate 0.0. These numbers are not final real-world results, but they do show that the data pipeline itself is coherent and that the synthetic data are strong enough to support at least one stable baseline detector. The detailed summary can be found in Table \ref{table1}.
 
 \begin{table}[H]
     \centering
     \caption{Current key held-out synthetic test results. All values are local smoke-scale synthetic results, not external instructor-test results.}\label{table1}
-    \begin{tabular}{llcccc}
+    \scalebox{0.8}{\begin{tabular}{llcccc}
         \toprule
         Model & Dataset / Threshold & Precision & Recall & TDR & Frame FPR \\
         \midrule
@@ -63,16 +60,16 @@ Our current best benchmark contains 12 synthetic clips, each 30 seconds long, fo
         Faster R-CNN & v5 balanced @ 0.50 & 0.9390 & 1.0000 & 1.0000 & 0.0000 \\
         Faster R-CNN & v5 balanced @ 0.20 & 1.0000 & 1.0000 & 1.0000 & 0.0000 \\
         \bottomrule
-    \end{tabular}
+    \end{tabular}}
 \end{table}
 
-Intuitively, the transformer-based detector appears to need a larger and more mature training setup than we currently have. On our present synthetic benchmark, it did not learn a reliable way to distinguish pest frames from empty frames, so it either missed almost everything or became too trigger-happy when we relaxed the decision rule. Faster R-CNN fit this stage of the project better. The current dataset is still relatively small, highly controlled, and contains many empty frames, and the more conventional detector handled that setting much more robustly. For that reason, we still include DETR as an important transformer-direction experiment, but we report Faster R-CNN as the strongest current local baseline rather than claiming that the transformer approach is already ready for final use.
+Intuitively, the transformer-based detector appears to need a larger and more mature training setup than we currently have. On our present synthetic benchmark, it did not learn a reliable way to distinguish pest frames from empty frames, so it either missed almost everything or became too trigger-happy when we relaxed the decision rule. Faster R-CNN fit this stage of the project better. The current dataset is still relatively small, highly controlled, and contains many empty frames, and the more conventional detector handled that setting much more robustly. For that reason, we still include DETR as an important transformer-direction experiment, but we report Faster R-CNN as the stronger current local baseline rather than claiming that the transformer approach is already ready for final use.
 
 \subsection*{Why This Matters}
-The main contribution at the current stage is not yet a final production-ready pest detector, but rather a working synthetic data pipeline together with a validated local baseline. This matters because the project has clearly moved beyond the ``still debugging the pipeline'' stage and into a more meaningful phase where scaling, realism improvements, and generalization testing can be pursued on top of a functioning system. In practical terms, the current results show that automated synthetic pest clip generation is feasible, per-frame bounding-box labeling works reliably, negative examples can be incorporated without breaking training, and model choice matters substantially under this synthetic setup.
+The main contribution at the current stage is a working synthetic data pipeline together with a validated local baseline. This matters because the project has clearly moved into a meaningful phase where scaling, realism improvements, and generalization testing can be pursued on top of a functioning system. In practise, the results show that automated synthetic pest clip generation is feasible, per-frame bounding-box labeling works reliably, negative examples can be incorporated without breaking training, and model choice matters substantially under this synthetic setup.
 
 \subsection*{Current Limitations}
-Although the local baseline is strong, the project is not finished. The current system still has several important limitations. It has only been validated at smoke scale rather than at full assignment scale, it does not yet adapt scene layout from a single user-provided kitchen image, the strongest current model is still the more conventional detector rather than the transformer-based model we initially hoped to use, and the reported results remain synthetic held-out results rather than real-world kitchen results.
+Although the local baseline is strong, there is still a long way to go. The current system still has several important limitations. It has only been validated at smoke scale rather than at full assignment scale, it does not yet adapt scene layout from a single user-provided kitchen image, the strongest current model is still the more conventional detector rather than the transformer-based model we initially hoped to use, and the reported results remain synthetic held-out results rather than real-world kitchen results, on which the methods will not have such high evaluation scores.
 
 \subsection*{Future Work}
 The next step is to push from a local smoke-scale baseline to an assignment-scale pipeline. That means generating more and longer clips, moving closer to 30--60 second production-style runs, and validating the system on harder external test data. We also want to revisit transformer-based detection once the larger video pipeline is in place, because the assignment still motivates that direction. Finally, we need to add scene adaptation from a single kitchen image so that the generated videos better match the target environment.
@@ -260,6 +257,20 @@ y_t = T(A, \phi_t).
 
 The current smoke-scale configuration uses 30-second clips at 4 FPS. The generator also supports negative clips with no pest, negative frames inside positive clips, shard-friendly clip indexing via \texttt{start\_clip}, curated model directories together with exclude lists, and visibility filtering so that tiny or nearly invisible positives are not mislabeled.
 
+To make the generation procedure reproducible at the implementation level, we record the concrete scene specification used by the current Blender pipeline. Each clip is rendered at resolution $1280 \times 720$ with Blender Cycles and 32 samples per frame. The camera is placed at $(0.0, -3.8, 1.3)$ with Euler rotation $(75^\circ, 0^\circ, 0^\circ)$. The key area light is placed at $(1.5, -2.0, 3.0)$ with energy 1200. A large emissive background plane is attached to the camera so that a sampled kitchen image fills the field of view. Pest models are imported from \texttt{.glb}, \texttt{.gltf}, \texttt{.fbx}, or \texttt{.obj} files, then recentered so that the combined mesh bounding box is centered at the origin and grounded to the floor plane. The rat asset is additionally rotated by $(0^\circ, 90^\circ, 0^\circ)$ so that it lies correctly on the floor under the current scene convention.
+
+The nuisance parameters are also class-dependent. Let $s$ denote the target normalized model scale before projected-box correction, $a$ the target normalized bbox area, and $v$ the motion speed. Then the current implementation uses:
+\begin{itemize}[leftmargin=1.5em]
+    \item rat: $s \sim \mathrm{Unif}(0.12, 0.22)$, $a \sim \mathrm{Unif}(0.0060, 0.0200)$, $v \sim \mathrm{Unif}(0.006, 0.012)$,
+    \item mouse: $s \sim \mathrm{Unif}(0.10, 0.18)$, $a \sim \mathrm{Unif}(0.0040, 0.0150)$, $v \sim \mathrm{Unif}(0.009, 0.016)$,
+    \item cockroach: $s \sim \mathrm{Unif}(0.08, 0.14)$, $a \sim \mathrm{Unif}(0.0030, 0.0120)$, $v \sim \mathrm{Unif}(0.012, 0.020)$.
+\end{itemize}
+For each positive clip, the generator samples an initial location $(x,y)$ uniformly from $[-0.9,0.9] \times [-0.4,0.8]$, samples an initial heading uniformly from $[0,2\pi)$, and then rescales the model so that the projected bbox area falls inside the target class-specific interval. If no valid visible initialization is found after 50 attempts, clip generation fails rather than silently accepting a bad pose.
+
+The current motion model is first-order and stochastic. At every frame, the heading receives an additive perturbation from $\mathrm{Unif}(-0.12,0.12)$ radians. With probability \texttt{pause\_prob}, the speed is multiplied by a factor from $\mathrm{Unif}(0.15,0.55)$; otherwise it is multiplied by a factor from $\mathrm{Unif}(0.96,1.04)$. The result is clipped back to the class-specific speed interval. The position is then advanced by $(\cos \theta \cdot v, \sin \theta \cdot v)$ and reflected off the rectangle $x \in [-0.95,0.95]$, $y \in [-0.45,0.85]$ by a bounce rule that flips the heading about the corresponding axis.
+
+Negative examples are injected in two ways. First, an entire clip is made negative with probability \texttt{negative\_clip\_prob}. Second, conditional on a positive clip, the generator samples exactly $\operatorname{round}(T \cdot p_{\mathrm{negframe}})$ frame indices uniformly without replacement and renders those frames with the pest hidden. A candidate projected bounding box is accepted only if at least $\max(6, 0.08V)$ mesh vertices are visible in camera view, where $V$ is the number of mesh vertices considered, and only if the final normalized bbox area is at least \texttt{min\_bbox\_area}. Otherwise the frame is converted to a negative frame and counted as visibility-filtered.
+
 \subsection{Label Format}
 Bounding boxes are exported in normalized center-width-height form. For a pixel-space box
 \[
@@ -338,6 +349,16 @@ This matters because naive batching with batch size 2 would naturally create man
 The DETR experiments in this repository were used primarily as smoke tests and diagnostic runs rather than as the main benchmark. For the stable local baseline, we therefore adopt a Faster R-CNN detector using the \texttt{fasterrcnn\_mobilenet\_v3\_large\_320\_fpn} architecture initialized with pretrained torchvision weights. The model is trained for 3 epochs with a batch size of 2 and a learning rate of $5 \times 10^{-5}$. To improve optimization stability, we apply gradient clipping with a maximum norm of 5.0.
 
 Because the current synthetic video-frame dataset contains a substantial proportion of negative frames, training additionally uses positive-anchor batching to ensure that each mini-batch contains at least one positive example. This design helps avoid unstable all-negative batches and contributed to the reliability of the Faster R-CNN baseline in our local experiments. For implementation stability on Windows, data loading is performed with zero worker subprocesses.
+
+More explicitly, the detector is the torchvision Faster R-CNN implementation with a MobileNetV3-Large-320-FPN backbone. The model is initialized from default pretrained detection weights, after which the ROI classification head is replaced so that the final predictor has four output classes: background plus the three pest classes. On disk, the class mapping is
+\[
+0 \mapsto \text{rat}, \qquad 1 \mapsto \text{mouse}, \qquad 2 \mapsto \text{cockroach},
+\]
+while the training code shifts these to labels $\{1,2,3\}$ because label 0 is reserved internally for background.
+
+Every training image is loaded as RGB and converted to a tensor. Every target dictionary contains \texttt{boxes}, \texttt{labels}, \texttt{image\_id}, \texttt{area}, and \texttt{iscrowd}. Labels stored on disk in normalized center-width-height form are converted back to pixel-space \texttt{xyxy} boxes before training. Optimization uses AdamW with learning rate $5 \times 10^{-5}$ and weight decay $10^{-4}$. The code trains for 3 epochs, computes mean finite training loss per epoch, computes validation loss in loss-producing mode on the validation split, writes a \texttt{last} checkpoint every epoch, and writes a \texttt{best} checkpoint whenever validation loss improves. The v5 benchmark reported in this appendix is evaluated from the \texttt{best} checkpoint.
+
+The \texttt{positive\_anchor} batching rule is itself part of the reproducible method. Let $P$ be the set of training indices with at least one ground-truth box and $N$ the set of empty-frame indices. For batch size 2, each mini-batch is formed by first selecting one anchor from $P$ and then filling the remaining slot from a shuffled pool consisting of all negatives plus extra positives. This guarantees at least one positive frame per batch whenever positives exist, which is why the v5 baseline avoids the non-finite all-negative batch behavior that can arise under naive batching on a dataset with roughly 54\% negative frames.
 \subsection{Evaluation Protocol}
 The current evaluation pipeline is thresholded rather than mAP-based. A predicted labeled box $(\hat{c}, \hat{b})$ is counted as a true positive when:
 \begin{enumerate}[leftmargin=1.5em]
@@ -412,7 +433,7 @@ These numbers support three conclusions:
     \item the current local engineering baseline is stable enough to support close-out and write-up.
 \end{enumerate}
 
-The most important result to report is therefore the current Faster R-CNN baseline on \texttt{video\_frame\_smoke\_v5}: on the local held-out synthetic test split, it achieves recall 1.0, precision 1.0, and frame-level false positive rate 0.0 at both confidence thresholds 0.5 and 0.2. This is the strongest local benchmark currently supported by the repository.
+The most important result to report is therefore the current Faster R-CNN baseline on \texttt{video\_frame\_smoke\_v5}. On the local held-out synthetic test split, it achieves recall 1.0, precision 0.939, and frame-level false positive rate 0.0 at confidence threshold 0.5; at confidence threshold 0.2, it achieves recall 1.0, precision 1.0, and frame-level false positive rate 0.0. This is the strongest local benchmark currently supported by the repository.
 
 \subsection{DETR Diagnosis}
 The DETR diagnosis is informative. Its held-out v4 test recall is zero at thresholds 0.5 and 0.2, but this is not because it produces no scores at all. Instead, the diagnostics show that the top scores on both positive and negative frames cluster around 0.025, so thresholds of 0.05 and above suppress all predictions. Even top-$k$ truncation does not recover a clean operating point. When the threshold is lowered to 0.01, recall rises, but the frame false positive rate reaches 1.0. This is best interpreted as a collapse in confidence and ranking.
@@ -425,18 +446,151 @@ The repository now contains a complete local pipeline that includes smoke-scale 
 
 
 \section{Reproducibility Notes}
+For reproducibility and implementation reference, the project codebase is available at \url{https://github.com/kxxuuu/Synthetic-Data-Generation-for-Pest-Detection.git}. The following appendix summarizes the key pipeline, configuration, and evaluation details for the codebase. The raw data is available at \url{https://drive.google.com/drive/folders/1K9UGb2jEL6k5vT1yu73o-FD_2ZQcWBtS?usp=sharing}.
 \subsection{Core Artifacts}
-The main artifacts in the current phase include \texttt{data/generated/video\_clip\_smoke\_v5/}, \texttt{data/generated/video\_frame\_smoke\_v5/}, \texttt{data/splits/video\_frame\_smoke\_v5/split.json}, \texttt{outputs/fasterrcnn\_video\_frame\_smoke\_v5\_balanced/}, \texttt{data/generated/video\_demo\_v1/}, \texttt{outputs/report\_figures\_v4\_comparison/}, and \texttt{outputs/report\_figures\_v5\_final/}.
+The main artifacts in the current phase include \texttt{data/generated/video\_clip\_smoke\_v5/},\\ \texttt{data/generated/video\_frame\_smoke\_v5/},\\ \texttt{data/splits/video\_frame\_smoke\_v5/split.json}, \\\texttt{outputs/fasterrcnn\_video\_frame\_smoke\_v5\_balanced/}, \\\texttt{data/generated/video\_demo\_v1/}, \\\texttt{outputs/report\_figures\_v4\_comparison/},\\ and \texttt{outputs/report\_figures\_v5\_final/}.
 
 \subsection{Main Scripts}
-The core scripts used in the current phase are \texttt{scripts/generate\_synthetic\_video\_blender.py}, \texttt{scripts/flatten\_video\_frames\_for\_detection.py}, \texttt{scripts/split\_detection\_dataset.py}, \texttt{scripts/train\_fasterrcnn.py}, \texttt{scripts/eval\_fasterrcnn.py}, \texttt{scripts/diagnose\_fasterrcnn\_predictions.py}, \texttt{scripts/audit\_detection\_dataset.py}, \texttt{scripts/assemble\_video\_from\_frames.py}, and \texttt{scripts/plot\_baseline\_report\_figures.py}.
+The core scripts used in the current phase are \texttt{scripts/generate\_synthetic\_video\_blender.py}, \\\texttt{scripts/flatten\_video\_frames\_for\_detection.py}, \\\texttt{scripts/split\_detection\_dataset.py}, \texttt{scripts/train\_fasterrcnn.py}, \\\texttt{scripts/eval\_fasterrcnn.py}, \\\texttt{scripts/diagnose\_fasterrcnn\_predictions.py}, \\\texttt{scripts/audit\_detection\_dataset.py}, \\\texttt{scripts/assemble\_video\_from\_frames.py},\\ and \texttt{scripts/plot\_baseline\_report\_figures.py}.
 
 \subsection{What a Reproducer Needs}
 To reproduce the current local results, a reader needs the repository code, the \texttt{pest-synth} environment defined in \texttt{environment.yml}, Blender, the curated pest model assets, kitchen background images, and the documented generation, split, training, and evaluation steps. The raw binary assets and generated datasets are intentionally treated as local artifacts rather than normal git-tracked files, so a complete reproducibility package should include either direct dataset links or a separately shared asset pack and dataset pack.
 
+\subsection{Exact Data Contract}
+The current reproducible pipeline assumes the following on-disk contracts. Kitchen backgrounds live under a directory such as \texttt{data/raw/kitchen\_backgrounds/} and may be nested arbitrarily; all \texttt{.jpg}, \texttt{.jpeg}, and \texttt{.png} files are treated as eligible backgrounds. Pest assets are grouped by class under model directories and may use \texttt{.glb}, \texttt{.gltf}, \texttt{.fbx}, or \texttt{.obj} formats.
 
-\subsection{Demo Assets}
-The current qualitative demo assets are 30-second MP4 clips generated from the smoke-scale pipeline. These are suitable for demonstration and report support even though the repository does not currently include a Jupyter notebook demo.
+The raw video generator writes one directory per clip:
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{clips/<clip\_id>/frames/frame\_<k>.png},
+    \item \texttt{clips/<clip\_id>/labels/frame\_<k>.txt},
+    \item \texttt{clips/<clip\_id>/clip\_metadata.json}.
+\end{itemize}
+Each label file is either empty, meaning no pest is present in that frame, or contains one line of the form \texttt{class\_id xc yc w h}, where the four box coordinates are normalized to $[0,1]$. The class IDs are 0 for rat, 1 for mouse, and 2 for cockroach.
+
+Flattening rewrites this clip-structured output into an image-detection layout:
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{images/<clip\_id>\_frame\_<k>.png},
+    \item \texttt{labels/<clip\_id>\_frame\_<k>.txt},
+    \item \texttt{manifest.csv}.
+\end{itemize}
+The split script writes \texttt{split.json}, which stores the absolute \texttt{data\_dir}, the integer \texttt{seed}, and three stem lists named \texttt{train}, \texttt{val}, and \texttt{test}. Stratification is performed by the first label ID in each file, while empty files are treated as class $-1$, so negatives are stratified separately from rat, mouse, and cockroach frames.
+
+\subsection{Step-by-Step Reproduction Recipe}
+The current main local benchmark can be reproduced in five deterministic stages.
+
+\paragraph{Stage 1: Generate synthetic clips.}
+Run Blender in background mode with the video generator, supplying kitchen backgrounds, curated pest model directories, and the smoke-scale hyperparameters. The v5-style configuration is:
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{num\_clips = 12},
+    \item \texttt{duration\_seconds = 30},
+    \item \texttt{fps = 4}, so $T = 120$ frames per clip,
+    \item \texttt{samples = 32},
+    \item \texttt{width = 1280}, \texttt{height = 720},
+    \item \texttt{min\_bbox\_area = 0.01},
+    \item \texttt{negative\_clip\_prob = 0.15},
+    \item \texttt{negative\_frame\_prob = 0.10},
+    \item \texttt{pause\_prob = 0.10},
+    \item \texttt{seed = 42},
+    \item per-clip RNG seed \texttt{clip\_seed = seed + clip\_number}.
+\end{itemize}
+If a strict class balance is desired, the reader can additionally pass a repeated \texttt{clip\_class\_sequence} such as rat, mouse, cockroach, rat, mouse, cockroach, and so on. Otherwise class identity is sampled uniformly from the available class pools on each non-negative clip.
+
+\paragraph{Stage 2: Flatten clip frames into a detection dataset.}
+Copy or symlink every rendered frame-label pair into \texttt{images/} and \texttt{labels/} using a flattened stem of the form \texttt{clip\_000123\_frame\_000045}. The repository default is \texttt{copy} mode.
+
+\paragraph{Stage 3: Build the split.}
+Apply the split script with train, validation, and test ratios 0.7, 0.15, and 0.15 and seed 42. Because splitting is stratified by first label ID, the negative-frame rate is preserved approximately across splits. For the current reported v5 benchmark, this yields 1008 train frames, 216 validation frames, and 216 test frames from 1440 total rendered frames.
+
+\paragraph{Stage 4: Train Faster R-CNN.}
+Train the torchvision Faster R-CNN baseline with
+\begin{itemize}[leftmargin=1.5em]
+    \item \texttt{arch = fasterrcnn\_mobilenet\_v3\_large\_320\_fpn},
+    \item \texttt{weights = default},
+    \item \texttt{epochs = 3},
+    \item \texttt{batch\_size = 2},
+    \item \texttt{lr = 5e-5},
+    \item \texttt{weight\_decay = 1e-4},
+    \item \texttt{grad\_clip\_norm = 5.0},
+    \item \texttt{batching\_strategy = positive\_anchor},
+    \item \texttt{num\_workers = 0},
+    \item \texttt{seed = 42}.
+\end{itemize}
+The run should emit \texttt{model.pt} and \texttt{metadata.json} under both \texttt{last/} and \texttt{best/}, plus a top-level \texttt{train.log} and \texttt{summary.json}. The reported appendix numbers correspond to evaluating \texttt{best/model.pt}, not the final epoch unconditionally.
+
+\paragraph{Stage 5: Evaluate the held-out test split.}
+Evaluate \texttt{best/model.pt} at confidence thresholds 0.5 and 0.2 with IoU threshold 0.5. The evaluation loop sorts predictions by score, greedily matches them to unused same-class ground-truth boxes, and then reports TP, FP, FN, recall, precision, negative-frame count, false-positive count on negative frames, and frame-level FPR. For the current reported local smoke-scale v5 benchmark, the held-out test split result is recall 1.0, precision 0.939, and frame-level FPR 0.0 at confidence threshold 0.5; at confidence threshold 0.2, it is recall 1.0, precision 1.0, and frame-level FPR 0.0.
+
+\subsection{Reference Command Sequence}
+One compact way to express the full pipeline is the following command template, where paths can be replaced by local asset locations:
+
+\begin{verbatim}
+blender --background --python scripts/generate_synthetic_video_blender.py -- \
+  --background-dir data/raw/kitchen_backgrounds \
+  --rat-model assets/models/rat/rat_primary.glb \
+  --mouse-model assets/models/mouse/mouse_primary.glb \
+  --cockroach-model assets/models/cockroach/cockroach_primary.glb \
+  --rat-model-dir assets/models/rat \
+  --mouse-model-dir assets/models/mouse \
+  --cockroach-model-dir assets/models/cockroach \
+  --out-dir data/generated/video_clip_smoke_v5 \
+  --num-clips 12 \
+  --duration-seconds 30 \
+  --fps 4 \
+  --samples 32 \
+  --min-bbox-area 0.01 \
+  --negative-clip-prob 0.15 \
+  --negative-frame-prob 0.10 \
+  --pause-prob 0.10 \
+  --width 1280 --height 720 \
+  --seed 42
+
+python scripts/flatten_video_frames_for_detection.py \
+  --video-dir data/generated/video_clip_smoke_v5 \
+  --out-dir data/generated/video_frame_smoke_v5 \
+  --mode copy
+
+python scripts/split_detection_dataset.py \
+  --data-dir data/generated/video_frame_smoke_v5 \
+  --out-dir data/splits/video_frame_smoke_v5 \
+  --train-ratio 0.7 --val-ratio 0.15 --test-ratio 0.15 \
+  --seed 42
+
+python scripts/train_fasterrcnn.py \
+  --data-dir data/generated/video_frame_smoke_v5 \
+  --split-json data/splits/video_frame_smoke_v5/split.json \
+  --output-dir outputs/fasterrcnn_video_frame_smoke_v5_balanced \
+  --arch fasterrcnn_mobilenet_v3_large_320_fpn \
+  --weights default \
+  --epochs 3 \
+  --batch-size 2 \
+  --lr 5e-5 \
+  --weight-decay 1e-4 \
+  --grad-clip-norm 5.0 \
+  --batching-strategy positive_anchor \
+  --num-workers 0 \
+  --seed 42
+
+python scripts/eval_fasterrcnn.py \
+  --data-dir data/generated/video_frame_smoke_v5 \
+  --split-json data/splits/video_frame_smoke_v5/split.json \
+  --checkpoint-dir outputs/fasterrcnn_video_frame_smoke_v5_balanced/best \
+  --output-json outputs/fasterrcnn_video_frame_smoke_v5_balanced/eval_test.json \
+  --confidence-threshold 0.5 \
+  --iou-threshold 0.5
+
+python scripts/eval_fasterrcnn.py \
+  --data-dir data/generated/video_frame_smoke_v5 \
+  --split-json data/splits/video_frame_smoke_v5/split.json \
+  --checkpoint-dir outputs/fasterrcnn_video_frame_smoke_v5_balanced/best \
+  --output-json outputs/fasterrcnn_video_frame_smoke_v5_balanced/eval_test_thr020.json \
+  --confidence-threshold 0.2 \
+  --iou-threshold 0.5
+\end{verbatim}
+
+\subsection{What Would Still Need To Be Shared}
+The technical description above is sufficient for a reader to recreate the full pipeline logic and rerun the benchmark, but a strict third-party reproduction still requires the raw external assets that are not committed into git: the kitchen background image pool, the curated pest model binaries, and any class-specific exclude lists used during the final v5 generation run. In a release-quality reproducibility package, those should be distributed as permanent dataset links or as a separate asset archive with checksums.
+
+
 
 \section{Discussion}
 \subsection{Why the Current Results Matter}
@@ -446,7 +600,7 @@ The current results matter for several reasons. They show that the synthetic cli
 The current system still has several important limitations. First, the strongest baseline is not the transformer-based model originally hoped for. Second, the results are purely local synthetic held-out results and do not prove real-world or instructor-test generalization. Third, the generator is still smoke-scale rather than assignment-scale. Fourth, the repository still does not adapt scene layout from a single user-provided kitchen image.
 
 \subsection{Expected Failure Modes Beyond the Current Split}
-Even though v5 performs perfectly on the local synthetic held-out split, several failure modes are still likely in harder settings. These include domain shift from rendered kitchen backgrounds to real camera footage, missed detections under stronger occlusion or clutter, sensitivity to unseen pest shapes or asset textures, failure under layout conditions not represented in the current background pool, and degraded performance when clip duration, motion, or scene complexity scale up.
+Even though v5 performs very strongly on the local synthetic held-out split, several failure modes are still likely in harder settings. These include domain shift from rendered kitchen backgrounds to real camera footage, missed detections under stronger occlusion or clutter, sensitivity to unseen pest shapes or asset textures, failure under layout conditions not represented in the current background pool, and degraded performance when clip duration, motion, or scene complexity scale up.
 
 \section{Future Work}
 The next development steps are to scale the generator from smoke-scale 30-second runs to assignment-scale 30--60 second batches, add scene adaptation from a single user-provided kitchen image or justify a baseline approximation, validate the current baseline on external or instructor-provided test videos, revisit transformer-based detectors after the larger video pipeline is in place, expand model diversity, hard negatives, and realism to reduce the synthetic-to-real domain gap, and study whether synthetic pretraining plus limited real fine-tuning improves robustness.
@@ -455,7 +609,7 @@ The next development steps are to scale the generator from smoke-scale 30-second
 \section{Conclusion}
 This project develops a reproducible synthetic-data pipeline for pest detection in kitchen environments. The repository now goes beyond static image generation: it supports smoke-scale 30-second clip generation, per-frame label export, video-to-detection flattening, detector training, diagnostics, demo video assembly, and report-ready artifacts.
 
-Empirically, the strongest current local baseline is Faster R-CNN with positive-anchor batching on \texttt{video\_frame\_smoke\_v5}. On the local held-out synthetic test split, this model achieves recall 1.0, precision 1.0, and frame-level false positive rate 0.0 at confidence thresholds 0.5 and 0.2. DETR, while implemented successfully, currently suffers from confidence and ranking collapse on the analogous smoke-scale video-frame split and is therefore not the recommended local baseline at this stage.
+Empirically, the strongest current local baseline is Faster R-CNN with positive-anchor batching on \texttt{video\_frame\_smoke\_v5}. On the local held-out synthetic test split, this model achieves recall 1.0, precision 0.939, and frame-level false positive rate 0.0 at confidence threshold 0.5; at confidence threshold 0.2, it achieves recall 1.0, precision 1.0, and frame-level false positive rate 0.0. DETR, while implemented successfully, currently suffers from confidence and ranking collapse on the analogous smoke-scale video-frame split and is therefore not the recommended local baseline at this stage.
 
 The main contribution of the current project stage is therefore twofold: a working synthetic video-frame generation and labeling pipeline, and a stable local detector baseline that demonstrates the pipeline can support meaningful training and evaluation. The major remaining gap is not basic engineering feasibility. It is closing the distance from local synthetic smoke-scale success to assignment-scale video generation, single-image scene adaptation, and external validation on held-out test videos.
 
