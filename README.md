@@ -250,6 +250,99 @@ For a teammate writing the report:
 - share [report_figures_v4_comparison](outputs/report_figures_v4_comparison/)
 - share [report_figures_v5_final](outputs/report_figures_v5_final/)
 
+## Shared Zip Packs
+
+If teammates are receiving prebuilt local artifacts instead of regenerating everything from scratch, the recommended shared archives are:
+
+- Shared download folder:
+  - [Google Drive zip-pack folder](https://drive.google.com/drive/folders/1K9UGb2jEL6k5vT1yu73o-FD_2ZQcWBtS?usp=sharing)
+
+- `synthetic_pest_asset_pack_v1.zip`
+  - contains `assets/models/...` and `data/raw/kitchen_backgrounds/...`
+- `synthetic_pest_dataset_video_frame_smoke_v5.zip`
+  - contains `data/generated/video_frame_smoke_v5/...`
+  - contains `data/splits/video_frame_smoke_v5/split.json`
+- `synthetic_pest_outputs_v5.zip`
+  - contains `outputs/fasterrcnn_video_frame_smoke_v5_balanced/...`
+  - contains `outputs/report_figures_v5_final/...`
+  - contains `data/generated/video_demo_v1/...`
+- `synthetic_pest_comparison_pack_v1.zip` (optional)
+  - contains v4 DETR / Faster R-CNN comparison outputs used for analysis and reporting
+
+### Where To Extract Them
+
+If the zip files were created with the repository folder included inside the archive, extract them into the parent directory that contains this repository. After extraction, the files should land under:
+
+```text
+Synthetic-Data-Generation-for-Pest-Detection/
+```
+
+with subpaths such as:
+
+```text
+Synthetic-Data-Generation-for-Pest-Detection/assets/models/...
+Synthetic-Data-Generation-for-Pest-Detection/data/generated/video_frame_smoke_v5/...
+Synthetic-Data-Generation-for-Pest-Detection/data/splits/video_frame_smoke_v5/split.json
+Synthetic-Data-Generation-for-Pest-Detection/outputs/fasterrcnn_video_frame_smoke_v5_balanced/...
+```
+
+If the zip files were created without the repository folder at the top level, extract them from the repository root instead.
+
+### Windows Extraction Example
+
+From the parent directory of the repository:
+
+```powershell
+Expand-Archive .\synthetic_pest_asset_pack_v1.zip -DestinationPath . -Force
+Expand-Archive .\synthetic_pest_dataset_video_frame_smoke_v5.zip -DestinationPath . -Force
+Expand-Archive .\synthetic_pest_outputs_v5.zip -DestinationPath . -Force
+```
+
+Optional comparison pack:
+
+```powershell
+Expand-Archive .\synthetic_pest_comparison_pack_v1.zip -DestinationPath . -Force
+```
+
+### Quick Restore Check
+
+After extraction, verify that these paths exist:
+
+- `assets/models/rat/`
+- `assets/models/mouse/`
+- `assets/models/cockroach/`
+- `data/raw/kitchen_backgrounds/`
+- `data/generated/video_frame_smoke_v5/`
+- `data/splits/video_frame_smoke_v5/split.json`
+- `outputs/fasterrcnn_video_frame_smoke_v5_balanced/`
+
+If those paths exist, the local project state is restored well enough for training, evaluation, reporting, and demo review without rerunning Blender.
+
+### Fastest Reproduction Paths
+
+If you want to continue model work only:
+
+1. `git pull`
+2. create the environment from `environment.yml`
+3. extract `synthetic_pest_dataset_video_frame_smoke_v5.zip`
+4. extract `synthetic_pest_outputs_v5.zip` if you want the current checkpoints and figures
+5. run training or evaluation scripts directly
+
+If you want to continue data generation work:
+
+1. `git pull`
+2. create the environment from `environment.yml`
+3. install Blender
+4. extract `synthetic_pest_asset_pack_v1.zip`
+5. generate new clips or datasets
+
+If you are writing the report only:
+
+1. `git pull`
+2. extract `synthetic_pest_outputs_v5.zip`
+3. read [REPORT_BRIEFING.md](REPORT_BRIEFING.md)
+4. use `video_demo_v1/` and `report_figures_v5_final/`
+
 ## Repository Layout
 
 ```text

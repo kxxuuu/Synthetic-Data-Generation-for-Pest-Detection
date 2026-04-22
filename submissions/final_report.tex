@@ -60,31 +60,19 @@ Our current best benchmark contains 12 synthetic clips, each 30 seconds long, fo
         DETR & v4 @ 0.20 & 0.0000 & 0.0000 & 0.0000 & 0.0000 \\
         DETR diagnostic & v4 @ 0.01 & 0.0021 & 0.4658 & 0.4658 & 1.0000 \\
         Faster R-CNN & v4 balanced @ 0.50 & 0.9865 & 1.0000 & 1.0000 & 0.0000 \\
-        Faster R-CNN & v5 balanced @ 0.50 & 1.0000 & 1.0000 & 1.0000 & 0.0000 \\
+        Faster R-CNN & v5 balanced @ 0.50 & 0.9390 & 1.0000 & 1.0000 & 0.0000 \\
         Faster R-CNN & v5 balanced @ 0.20 & 1.0000 & 1.0000 & 1.0000 & 0.0000 \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-\subsection*{Why This Matters}
-The main contribution of the current stage is not a final production-ready pest detector. It is a working synthetic data pipeline plus a validated local baseline. That is important because it moves the project out of the ``still debugging the pipeline'' stage and into the ``now we can scale, improve realism, and test generalization'' stage.
+Intuitively, the transformer-based detector appears to need a larger and more mature training setup than we currently have. On our present synthetic benchmark, it did not learn a reliable way to distinguish pest frames from empty frames, so it either missed almost everything or became too trigger-happy when we relaxed the decision rule. Faster R-CNN fit this stage of the project better. The current dataset is still relatively small, highly controlled, and contains many empty frames, and the more conventional detector handled that setting much more robustly. For that reason, we still include DETR as an important transformer-direction experiment, but we report Faster R-CNN as the strongest current local baseline rather than claiming that the transformer approach is already ready for final use.
 
-In practical terms, we now know:
-\begin{itemize}
-    \item automated synthetic pest clip generation is feasible,
-    \item per-frame bounding-box labeling works,
-    \item negative examples can be included without breaking training,
-    \item model choice matters a lot under this synthetic setup.
-\end{itemize}
+\subsection*{Why This Matters}
+The main contribution at the current stage is not yet a final production-ready pest detector, but rather a working synthetic data pipeline together with a validated local baseline. This matters because the project has clearly moved beyond the ``still debugging the pipeline'' stage and into a more meaningful phase where scaling, realism improvements, and generalization testing can be pursued on top of a functioning system. In practical terms, the current results show that automated synthetic pest clip generation is feasible, per-frame bounding-box labeling works reliably, negative examples can be incorporated without breaking training, and model choice matters substantially under this synthetic setup.
 
 \subsection*{Current Limitations}
-Although the local baseline is strong, the project is not finished. The current system still has several important limitations:
-\begin{itemize}
-    \item it has only been validated at smoke scale, not at full assignment scale,
-    \item it does not yet adapt scene layout from a single user-provided kitchen image,
-    \item the strongest current model is the more conventional detector rather than the transformer-based one we initially hoped to use,
-    \item the reported results are synthetic held-out results, not real-world kitchen results.
-\end{itemize}
+Although the local baseline is strong, the project is not finished. The current system still has several important limitations. It has only been validated at smoke scale rather than at full assignment scale, it does not yet adapt scene layout from a single user-provided kitchen image, the strongest current model is still the more conventional detector rather than the transformer-based model we initially hoped to use, and the reported results remain synthetic held-out results rather than real-world kitchen results.
 
 \subsection*{Future Work}
 The next step is to push from a local smoke-scale baseline to an assignment-scale pipeline. That means generating more and longer clips, moving closer to 30--60 second production-style runs, and validating the system on harder external test data. We also want to revisit transformer-based detection once the larger video pipeline is in place, because the assignment still motivates that direction. Finally, we need to add scene adaptation from a single kitchen image so that the generated videos better match the target environment.
@@ -227,7 +215,7 @@ P_{\mathrm{syn}} \neq P_{\mathrm{real}}.
 \]
 
 \section{Related Work}
-Transformer-based detection is represented here by DETR, which formulates object detection as direct set prediction rather than proposal generation plus postprocessing \cite{carion2020detr}. DETR is relevant because the assignment explicitly points toward a vision-transformer-style detector.
+Transformer-based detection is represented here by DETR, which formulates object detection as direct set prediction rather than proposal generation plus postprocessing \cite{carion2020detr}. DETR is relevant because the assignment explicitly points toward a vision-transformer-style detector. For a region-based comparison baseline, we also use Faster R-CNN \cite{ren2015fasterrcnn}, which remains a standard two-stage detection framework.
 
 Synthetic data generation is a natural fit for rare-event vision problems because it replaces expensive manual labeling with controllable rendering. The main challenge is domain gap. A synthetic pipeline can provide clean labels and broad scene variation, but the resulting model may still overfit to rendered textures, object placement patterns, or lighting statistics.
 
@@ -239,7 +227,7 @@ The repository implements an automated workflow that begins with collecting kitc
 
 
 \subsection{Background Collection and Assets}
-Kitchen backgrounds are collected from Places365 and filtered to kitchen-related scene categories such as \texttt{kitchen} and \texttt{restaurant\_kitchen}. Pest assets are organized under:
+Kitchen backgrounds are collected from Places365 \cite{zhou2018places} and filtered to kitchen-related scene categories such as \texttt{kitchen} and \texttt{restaurant\_kitchen}. Pest assets are organized under:
 \begin{itemize}[leftmargin=1.5em]
     \item \texttt{assets/models/rat/},
     \item \texttt{assets/models/mouse/},
@@ -270,14 +258,7 @@ with labels
 y_t = T(A, \phi_t).
 \]
 
-The current smoke-scale configuration uses 30-second clips at 4 FPS. The generator also supports:
-\begin{itemize}[leftmargin=1.5em]
-    \item negative clips with no pest,
-    \item negative frames inside positive clips,
-    \item shard-friendly clip indexing via \texttt{start\_clip},
-    \item curated model directories plus exclude lists,
-    \item visibility filtering so that tiny or nearly invisible positives are not mislabeled.
-\end{itemize}
+The current smoke-scale configuration uses 30-second clips at 4 FPS. The generator also supports negative clips with no pest, negative frames inside positive clips, shard-friendly clip indexing via \texttt{start\_clip}, curated model directories together with exclude lists, and visibility filtering so that tiny or nearly invisible positives are not mislabeled.
 
 \subsection{Label Format}
 Bounding boxes are exported in normalized center-width-height form. For a pixel-space box
@@ -324,7 +305,7 @@ We implemented DETR as the initial transformer-based detector \cite{carion2020de
 \]
 where $\hat{p}_i$ is a class distribution over the pest classes plus a no-object class and $\hat{b}_i \in [0,1]^4$ is a normalized box. Training uses Hungarian matching to align predictions and ground-truth objects.
 
-We also implemented a torchvision Faster R-CNN baseline. This became the practical local baseline after diagnosis because DETR exhibited confidence and ranking collapse on the current synthetic video-frame split, while Faster R-CNN trained cleanly and separated positive from negative frames much more reliably. We stabilized Faster R-CNN further with a \texttt{positive\_anchor} batching strategy, which ensures that each mini-batch contains at least one positive frame and avoids all-negative mini-batches that can cause non-finite losses in heavily negative datasets.
+We also implemented a torchvision Faster R-CNN baseline \cite{ren2015fasterrcnn}. This became the practical local baseline after diagnosis because DETR exhibited confidence and ranking collapse on the current synthetic video-frame split, while Faster R-CNN trained cleanly and separated positive from negative frames much more reliably. We stabilized Faster R-CNN further with a \texttt{positive\_anchor} batching strategy, which ensures that each mini-batch contains at least one positive frame and avoids all-negative mini-batches that can cause non-finite losses in heavily negative datasets.
 
 \section{Experimental Setup}
 \subsection{Datasets}
@@ -393,7 +374,7 @@ The most important current empirical finding is that detector choice matters sub
 \begin{table}[H]
     \centering
     \caption{Current main local baseline run on \texttt{video\_frame\_smoke\_v5}.}
-    \begin{tabular}{lcc}
+    \scalebox{0.9}{\begin{tabular}{lcc}
         \toprule
         Quantity & Value & Notes \\
         \midrule
@@ -404,7 +385,7 @@ The most important current empirical finding is that detector choice matters sub
         Skipped train batches & 0 & positive-anchor batching \\
         Skipped validation batches & 0 & positive-anchor batching \\
         \bottomrule
-    \end{tabular}
+    \end{tabular}}
 \end{table}
 
 \begin{table}[H]
@@ -418,7 +399,7 @@ The most important current empirical finding is that detector choice matters sub
         DETR & v4 @ 0.20 & 0.0000 & 0.0000 & 0.0000 & 0.0000 \\
         DETR diagnostic & v4 @ 0.01 & 0.0021 & 0.4658 & 0.4658 & 1.0000 \\
         Faster R-CNN & v4 balanced @ 0.50 & 0.9865 & 1.0000 & 1.0000 & 0.0000 \\
-        Faster R-CNN & v5 balanced @ 0.50 & 1.0000 & 1.0000 & 1.0000 & 0.0000 \\
+        Faster R-CNN & v5 balanced @ 0.50 & 0.9390 & 1.0000 & 1.0000 & 0.0000 \\
         Faster R-CNN & v5 balanced @ 0.20 & 1.0000 & 1.0000 & 1.0000 & 0.0000 \\
         \bottomrule
     \end{tabular}
